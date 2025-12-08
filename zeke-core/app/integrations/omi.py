@@ -99,8 +99,8 @@ class OmiClient:
             finished_at=datetime.fromisoformat(omi_data["finished_at"]) if omi_data.get("finished_at") else None,
             transcript_segments=segments,
             action_items=action_items,
-            location_lat=omi_data.get("geolocation", {}).get("latitude"),
-            location_lng=omi_data.get("geolocation", {}).get("longitude"),
+            location_lat=(omi_data.get("geolocation") or {}).get("latitude"),
+            location_lng=(omi_data.get("geolocation") or {}).get("longitude"),
             external_data=omi_data
         )
 
