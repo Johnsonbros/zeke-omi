@@ -11,7 +11,7 @@ import { placesApi, api, type Place, type PlaceCreate, type PlaceStats, type Pla
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-type ViewMode = 'list' | 'detail';
+type ViewMode = 'list' | 'detail' | 'listDetail';
 
 const CATEGORIES = [
   { value: 'home', label: 'Home', icon: Home },
@@ -307,6 +307,8 @@ export function Places() {
   const [quickAddSaving, setQuickAddSaving] = useState(false);
   const [allTags, setAllTags] = useState<PlaceTag[]>([]);
   const [placeLists, setPlaceLists] = useState<PlaceList[]>([]);
+  const [selectedList, setSelectedList] = useState<PlaceList | null>(null);
+  const [listPlaces, setListPlaces] = useState<Place[]>([]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -534,6 +536,36 @@ export function Places() {
     setPlaceStats(null);
   }
 
+  async function handleSelectList(list: PlaceList) {
+    setSelectedList(list);
+    setViewMode('listDetail');
+    try {
+      const places = await placesApi.getListPlaces(list.id);
+      setListPlaces(places);
+    } catch (error) {
+      console.error('Error loading list places:', error);
+    }
+  }
+
+  function handleBackFromListDetail() {
+    setViewMode('list');
+    setSelectedList(null);
+    setListPlaces([]);
+  }
+
+  async function handleRemoveFromListDetail(placeId: string) {
+    if (!selectedList) return;
+    await placesApi.removePlaceFromList(selectedList.id, placeId);
+    setListPlaces(listPlaces.filter(p => p.id !== placeId));
+  }
+
+  async function handleAddToListDetail(placeId: string) {
+    if (!selectedList) return;
+    await placesApi.addPlaceToList(selectedList.id, placeId);
+    const updatedPlaces = await placesApi.getListPlaces(selectedList.id);
+    setListPlaces(updatedPlaces);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -566,6 +598,21 @@ export function Places() {
           placeLists={placeLists}
           onCreateList={handleCreateList}
           onDeleteList={handleDeleteList}
+          onSelectList={handleSelectList}
+        />
+      ) : viewMode === 'listDetail' ? (
+        <PlaceListDetail
+          list={selectedList!}
+          places={listPlaces}
+          allPlaces={places}
+          onBack={handleBackFromListDetail}
+          onRemovePlace={handleRemoveFromListDetail}
+          onAddPlace={handleAddToListDetail}
+          onDeleteList={(id) => {
+            handleDeleteList(id);
+            handleBackFromListDetail();
+          }}
+          onUpdateList={fetchPlaceLists}
         />
       ) : (
         <PlaceDetailView
@@ -615,6 +662,7 @@ function PlacesListView({
   placeLists,
   onCreateList,
   onDeleteList,
+  onSelectList,
 }: {
   places: Place[];
   onAddPlace: () => void;
@@ -633,6 +681,7 @@ function PlacesListView({
   placeLists: PlaceList[];
   onCreateList: (name: string, description?: string) => Promise<void>;
   onDeleteList: (listId: string) => Promise<void>;
+  onSelectList: (list: PlaceList) => void;
 }) {
   return (
     <>
@@ -697,6 +746,7 @@ function PlacesListView({
         placeLists={placeLists}
         onCreateList={onCreateList}
         onDeleteList={onDeleteList}
+        onSelectList={onSelectList}
       />
 
       {/* Suggested Places Section */}
@@ -831,14 +881,135 @@ function RoutineCard({ routine }: { routine: Routine }) {
   );
 }
 
+function PlaceListDetail({
+  list,
+  places,
+  allPlaces,
+  onBack,
+  onRemovePlace,
+  onAddPlace,
+  onDeleteList,
+  onUpdateList,
+}: {
+  list: PlaceList;
+  places: Place[];
+  allPlaces: Place[];
+  onBack: () => void;
+  onRemovePlace: (placeId: string) => Promise<void>;
+  onAddPlace: (placeId: string) => Promise<void>;
+  onDeleteList: (listId: string) => Promise<void>;
+  onUpdateList: () => Promise<void>;
+}) {
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState(list.name);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [newDesc, setNewDesc] = useState(list.description || '');
+  const [saving, setSaving] = useState(false);
+
+  const availablePlaces = allPlaces.filter(p => !places.some(lp => lp.id === p.id));
+
+  async function handleSaveName() {
+    if (!newName.trim() || saving) return;
+    setSaving(true);
+    try {
+      // API call would go here for updating list
+      setEditingName(false);
+      await onUpdateList();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-2xl font-bold text-white flex-1">{list.name}</h1>
+        <button
+          onClick={() => {
+            if (confirm(`Delete list "${list.name}"?`)) {
+              onDeleteList(list.id);
+            }
+          }}
+          className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+        >
+          <Trash2 className="w-5 h-5" />
+        </button>
+      </div>
+
+      {list.description && (
+        <p className="text-slate-400 text-sm">{list.description}</p>
+      )}
+
+      <div className="bg-slate-900 rounded-xl border border-slate-700 p-4 md:p-6">
+        <h2 className="text-lg font-semibold text-white mb-4">Places in this list ({places.length})</h2>
+        
+        {places.length === 0 ? (
+          <p className="text-slate-400 text-sm mb-4">No places in this list yet.</p>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {places.map(place => (
+              <div key={place.id} className="bg-slate-800 rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-slate-700 rounded">
+                    <MapPin className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">{place.name}</p>
+                    <p className="text-slate-500 text-xs capitalize">{place.category}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onRemovePlace(place.id)}
+                  className="p-1.5 text-slate-500 hover:text-red-400 rounded transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {availablePlaces.length > 0 && (
+          <div className="border-t border-slate-700 pt-4">
+            <p className="text-slate-400 text-sm mb-3">Add places to this list:</p>
+            <div className="space-y-2">
+              {availablePlaces.map(place => (
+                <button
+                  key={place.id}
+                  onClick={() => onAddPlace(place.id)}
+                  className="w-full text-left bg-slate-800 hover:bg-slate-700 rounded-lg p-3 flex items-center justify-between transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-purple-400" />
+                    <span className="text-white text-sm">{place.name}</span>
+                  </div>
+                  <span className="text-slate-500 text-xs capitalize">{place.category}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PlaceListsSection({
   placeLists,
   onCreateList,
   onDeleteList,
+  onSelectList,
 }: {
   placeLists: PlaceList[];
   onCreateList: (name: string, description?: string) => Promise<void>;
   onDeleteList: (listId: string) => Promise<void>;
+  onSelectList: (list: PlaceList) => void;
 }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -923,12 +1094,13 @@ function PlaceListsSection({
           {placeLists.map((list, index) => (
             <div
               key={list.id}
-              className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition-colors group"
+              onClick={() => onSelectList(list)}
+              className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-purple-500 hover:bg-slate-750 transition-all cursor-pointer group"
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div
-                    className="p-2 rounded-lg"
+                    className="p-2 rounded-lg flex-shrink-0"
                     style={{ backgroundColor: `${list.color || LIST_COLORS[index % LIST_COLORS.length]}20` }}
                   >
                     <List
@@ -936,26 +1108,27 @@ function PlaceListsSection({
                       style={{ color: list.color || LIST_COLORS[index % LIST_COLORS.length] }}
                     />
                   </div>
-                  <div>
-                    <h3 className="text-white font-medium">{list.name}</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-white font-medium truncate">{list.name}</h3>
                     <p className="text-slate-500 text-xs">
                       {list.place_count} {list.place_count === 1 ? 'place' : 'places'}
                     </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (confirm(`Delete list "${list.name}"?`)) {
                       onDeleteList(list.id);
                     }
                   }}
-                  className="p-1 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                  className="p-1 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
               {list.description && (
-                <p className="text-slate-400 text-sm mt-2">{list.description}</p>
+                <p className="text-slate-400 text-sm mt-2 line-clamp-2">{list.description}</p>
               )}
             </div>
           ))}
