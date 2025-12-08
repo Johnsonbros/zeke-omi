@@ -277,4 +277,32 @@ export const api = {
       return false;
     }
   },
+
+  async rejectMemoryWithFeedback(
+    memoryId: string, 
+    reason: string, 
+    feedback: string,
+    deletePermanently = false
+  ): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/curation/reject/${memoryId}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason,
+          feedback,
+          delete_permanently: deletePermanently,
+        }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async getMemoriesForCuration(userId = 'default_user', limit = 20): Promise<Memory[]> {
+    const res = await fetch(`${API_BASE}/curation/queue/${userId}?limit=${limit}`);
+    if (!res.ok) return [];
+    return res.json();
+  },
 };
