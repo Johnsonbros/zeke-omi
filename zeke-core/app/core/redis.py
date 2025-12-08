@@ -74,3 +74,8 @@ async def enqueue_job(func_name: str, *args, **kwargs):
     if job:
         logger.info(f"Enqueued job: {func_name} with id {job.job_id}")
     return job
+
+
+async def get_redis() -> ArqRedis:
+    """Alias for get_redis_pool for compatibility"""
+    return await get_redis_pool()

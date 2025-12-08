@@ -98,6 +98,54 @@ export interface MotionSummary {
   dominant_motion: string;
 }
 
+export interface Place {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius_meters: number;
+  category: string;
+  address?: string;
+  visit_count: number;
+  total_dwell_time_minutes: number;
+  first_visited?: string;
+  last_visited?: string;
+  is_confirmed: boolean;
+}
+
+export interface PlaceCreate {
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius_meters?: number;
+  category?: string;
+}
+
+export interface PlaceUpdate {
+  name?: string;
+  latitude?: number;
+  longitude?: number;
+  radius_meters?: number;
+  category?: string;
+}
+
+export interface PlaceVisit {
+  id: string;
+  entered_at: string;
+  exited_at?: string;
+  dwell_minutes?: number;
+  day_of_week: number;
+}
+
+export interface PlaceStats {
+  place: Place;
+  visits: PlaceVisit[];
+  average_dwell_minutes: number;
+  visits_by_day: Record<number, number>;
+  visits_by_hour: Record<number, number>;
+  memories_count: number;
+}
+
 export const api = {
   async chat(message: string, history: ChatMessage[] = []): Promise<ChatResponse> {
     const res = await fetch(`${API_BASE}/chat/`, {
@@ -302,6 +350,81 @@ export const api = {
 
   async getMemoriesForCuration(userId = 'default_user', limit = 20): Promise<Memory[]> {
     const res = await fetch(`${API_BASE}/curation/queue/${userId}?limit=${limit}`);
+    if (!res.ok) return [];
+    return res.json();
+  },
+};
+
+export const placesApi = {
+  async list(): Promise<Place[]> {
+    const res = await fetch(`${API_BASE}/places/`);
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  async get(id: string): Promise<Place | null> {
+    try {
+      const res = await fetch(`${API_BASE}/places/${id}`);
+      if (!res.ok) return null;
+      return res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async create(data: PlaceCreate): Promise<Place> {
+    const res = await fetch(`${API_BASE}/places/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create place');
+    return res.json();
+  },
+
+  async update(id: string, data: PlaceUpdate): Promise<Place> {
+    const res = await fetch(`${API_BASE}/places/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update place');
+    return res.json();
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/places/${id}`, { method: 'DELETE' });
+    return res.ok;
+  },
+
+  async getStats(id: string): Promise<PlaceStats | null> {
+    try {
+      const res = await fetch(`${API_BASE}/places/${id}/stats`);
+      if (!res.ok) return null;
+      return res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async getVisits(id: string, limit = 10): Promise<PlaceVisit[]> {
+    const res = await fetch(`${API_BASE}/places/${id}/visits?limit=${limit}`);
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  async getCurrent(): Promise<Place | null> {
+    try {
+      const res = await fetch(`${API_BASE}/places/current`);
+      if (!res.ok) return null;
+      return res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async getMostVisited(limit = 5): Promise<Place[]> {
+    const res = await fetch(`${API_BASE}/places/most-visited?limit=${limit}`);
     if (!res.ok) return [];
     return res.json();
   },

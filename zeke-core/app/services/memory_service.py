@@ -12,6 +12,7 @@ from ..core.database import get_db_context
 
 if TYPE_CHECKING:
     from .knowledge_graph_service import KnowledgeGraphService
+    from .place_service import PlaceService
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +85,30 @@ class MemoryService:
         conversation_id: Optional[str] = None,
         manually_added: bool = False,
         deduplicate: bool = True,
-        extract_graph: bool = True
+        extract_graph: bool = True,
+        place_id: Optional[str] = None,
+        place_name: Optional[str] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None
     ) -> MemoryResponse:
+        if not place_id:
+            try:
+                from .place_service import PlaceService
+                place_service = PlaceService()
+                cached = await place_service.get_current_place_from_cache(user_id)
+                if cached:
+                    place_id = cached.get("place_id")
+                    place_name = cached.get("place_name")
+                else:
+                    current_place = await place_service.get_current_place(user_id)
+                    if current_place:
+                        place_id = current_place.id
+                        place_name = current_place.name
+                        latitude = current_place.latitude
+                        longitude = current_place.longitude
+            except Exception as e:
+                logger.debug(f"Could not get current place: {e}")
+        
         openai_client = self._require_openai()
         embedding = await openai_client.create_embedding(content)
         
@@ -102,7 +125,11 @@ class MemoryService:
                 category=category,
                 conversation_id=conversation_id,
                 manually_added=manually_added,
-                embedding=embedding
+                embedding=embedding,
+                place_id=place_id,
+                place_name=place_name,
+                latitude=latitude,
+                longitude=longitude
             )
             db.add(memory)
             db.flush()
@@ -402,3 +429,29 @@ Only return the JSON array, no other text."""
             context_parts.append(graph_context)
         
         return "\n".join(context_parts) if context_parts else ""
+    
+    async def search_by_place(
+        self,
+        user_id: str,
+        place_id: str,
+        limit: int = 20
+    ) -> List[dict]:
+        """Get memories associated with a specific place"""
+        with get_db_context() as db:
+            memories = db.query(MemoryDB).filter(
+                and_(
+                    MemoryDB.uid == user_id,
+                    MemoryDB.place_id == place_id
+                )
+            ).order_by(desc(MemoryDB.created_at)).limit(limit).all()
+            
+            return [
+                {
+                    "id": m.id,
+                    "content": m.content,
+                    "category": m.category,
+                    "created_at": str(m.created_at),
+                    "place_name": m.place_name
+                }
+                for m in memories
+            ]

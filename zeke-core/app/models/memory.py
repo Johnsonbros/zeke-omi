@@ -69,6 +69,11 @@ class MemoryDB(Base, UUIDMixin, TimestampMixin):
     
     conversation_id: Optional[str] = Column(String(36), nullable=True, index=True)
     
+    place_id: Optional[str] = Column(String(36), nullable=True, index=True)
+    place_name: Optional[str] = Column(String(128), nullable=True)
+    latitude: Optional[float] = Column(Float, nullable=True)
+    longitude: Optional[float] = Column(Float, nullable=True)
+    
     reviewed: bool = Column(Boolean, default=False)
     user_review: Optional[bool] = Column(Boolean, nullable=True)
     manually_added: bool = Column(Boolean, default=False)

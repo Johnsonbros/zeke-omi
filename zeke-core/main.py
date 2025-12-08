@@ -7,7 +7,7 @@ import subprocess
 import os
 import uvicorn
 
-from app.api import chat, memories, tasks, omi, sms, overland, curation, knowledge_graph, auth, context
+from app.api import chat, memories, tasks, omi, sms, overland, curation, knowledge_graph, auth, context, places
 from app.core.config import get_settings
 from app.core.database import init_db
 from app.core.events import event_bus, Event, EventTypes
@@ -210,6 +210,7 @@ app.include_router(curation.router, prefix="/api")
 app.include_router(knowledge_graph.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(context.router, prefix="/api")
+app.include_router(places.router, prefix="/api/places", tags=["places"])
 
 
 @app.get("/")

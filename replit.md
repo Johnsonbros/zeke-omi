@@ -68,6 +68,13 @@ Preferred communication style: Simple, everyday language.
 - **Resource Lifecycle Management**: Ensures proper cleanup and prevents memory leaks.
 - **Notification Permission System**: Controls plugin notification access.
 - **Memory Curation System**: Automates classification, tagging, and enrichment of memories. Includes a mobile-first swipe-based curation interface (Tinder-like) where users swipe left to save and right to remove memories. Rejected memories prompt for feedback (reason selection + optional details) to create a reinforcement learning loop for improving future curation quality. **Quality Filters**: Automatic detection of low-quality memories (third-person language like "the user", vague phrases, low specificity) with quality scoring (0.0-1.0). Memories with score below 0.5 are auto-flagged for review. Memory extraction prompts generate first-person, specific, actionable content.
+- **Place Intelligence System**: Comprehensive location-aware feature set for geo-contextual AI assistance.
+  - **Places Model**: Named locations with geofence radius, categories (home/work/gym/restaurant/etc.), visit tracking, and dwell time analytics.
+  - **PlaceService**: Haversine-based place detection, Redis-cached current place state, visit lifecycle management (entry/exit/dwell time).
+  - **Overland Integration**: Automatic place detection on GPS location updates, triggers on place entry/exit.
+  - **Location-Linked Data**: Memories auto-tagged with current place, tasks with arrival/departure triggers.
+  - **Place-Aware Chat**: Orchestrator includes place context in conversations, `search_memories_at_place` tool for queries like "What did I do at the gym?"
+  - **Places Dashboard UI**: Full management page with map visualization, visit history, statistics, add/edit/delete places.
 - **Emotional Memory Context**: Analyzes memories for sentiment (score -1 to +1), emotional weight (0.0-1.0), milestone detection (family moments, personal achievements, creative breakthroughs), and personal significance classification. Emotionally significant memories receive a 30% boost in RAG retrieval.
 - **Personal Life Context Engine**: Time-based context modes (Morning Planning, Family Time, Writing Mode, Work Mode) with automatic switching, proactive briefings (morning/evening), focus support features (drift detection, refocus prompts), and parking lot for capturing tangent ideas during focused work.
 - **Time-Sensitive Reminders**: Dedicated reminder system for urgent items (school pickups, appointments) with lead time notifications and priority levels.

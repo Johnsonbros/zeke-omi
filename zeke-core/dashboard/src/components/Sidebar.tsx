@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Brain, CheckSquare, X, Zap } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Brain, CheckSquare, MapPin, X, Zap } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', gradient: 'from-blue-500 to-cyan-500' },
   { to: '/chat', icon: MessageSquare, label: 'Chat', gradient: 'from-green-500 to-emerald-500' },
   { to: '/memories', icon: Brain, label: 'Memories', gradient: 'from-cyan-500 to-blue-600' },
   { to: '/tasks', icon: CheckSquare, label: 'Tasks', gradient: 'from-amber-500 to-orange-500' },
+  { to: '/places', icon: MapPin, label: 'Places', gradient: 'from-purple-500 to-pink-600' },
 ];
 
 interface SidebarProps {

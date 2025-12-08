@@ -2,19 +2,27 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from sqlalchemy import and_
 import logging
+import os
 
 from ..services.location_service import LocationService
+from ..services.place_service import PlaceService
 from ..models.location import (
     OverlandPayload, 
     LocationResponse, 
     LocationContext
 )
+from ..models.place import PlaceCategory
+from ..models.task import TaskDB
 from ..core.config import get_settings
+from ..core.database import get_db_context
 
 router = APIRouter(prefix="/overland", tags=["overland"], redirect_slashes=False)
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+_home_place_checked = False
 
 
 class OverlandResponse(BaseModel):
@@ -30,6 +38,125 @@ class LocationHistoryRequest(BaseModel):
 
 def get_location_service() -> LocationService:
     return LocationService()
+
+
+def get_place_service() -> PlaceService:
+    return PlaceService()
+
+
+async def ensure_home_place_exists(place_service: PlaceService, user_id: str):
+    global _home_place_checked
+    
+    if _home_place_checked:
+        return
+    
+    home_location = os.environ.get("HOME_LOCATION")
+    if not home_location:
+        _home_place_checked = True
+        return
+    
+    try:
+        parts = home_location.split(",")
+        if len(parts) != 2:
+            logger.warning(f"Invalid HOME_LOCATION format (expected 'lat,lon'): {home_location}")
+            _home_place_checked = True
+            return
+        
+        home_lat = float(parts[0].strip())
+        home_lon = float(parts[1].strip())
+        
+        existing_places = await place_service.list_places(uid=user_id)
+        home_exists = any(p.name.lower() == "home" for p in existing_places)
+        
+        if not home_exists:
+            await place_service.create_place(
+                uid=user_id,
+                name="Home",
+                latitude=home_lat,
+                longitude=home_lon,
+                radius_meters=100.0,
+                category=PlaceCategory.home,
+                is_auto_detected=True
+            )
+            logger.info(f"Auto-created Home place at ({home_lat}, {home_lon})")
+        
+        _home_place_checked = True
+        
+    except Exception as e:
+        logger.error(f"Error checking/creating Home place: {e}")
+        _home_place_checked = True
+
+
+async def check_location_triggered_tasks(user_id: str, place_id: str, trigger_type: str):
+    """Check and trigger location-based task reminders"""
+    try:
+        with get_db_context() as db:
+            if trigger_type == "arrival":
+                tasks = db.query(TaskDB).filter(
+                    and_(
+                        TaskDB.uid == user_id,
+                        TaskDB.place_id == place_id,
+                        TaskDB.trigger_on_arrival == True,
+                        TaskDB.status == "pending",
+                        TaskDB.location_triggered == False
+                    )
+                ).all()
+            else:
+                tasks = db.query(TaskDB).filter(
+                    and_(
+                        TaskDB.uid == user_id,
+                        TaskDB.place_id == place_id,
+                        TaskDB.trigger_on_departure == True,
+                        TaskDB.status == "pending",
+                        TaskDB.location_triggered == False
+                    )
+                ).all()
+            
+            for task in tasks:
+                task.location_triggered = True
+                logger.info(f"Location triggered task: {task.title} ({trigger_type} at place {place_id})")
+                
+    except Exception as e:
+        logger.error(f"Error checking location triggers: {e}")
+
+
+async def process_place_detection(
+    place_service: PlaceService,
+    user_id: str,
+    lat: float,
+    lon: float
+):
+    try:
+        exited_place = await place_service.check_place_exit(
+            uid=user_id,
+            lat=lat,
+            lon=lon
+        )
+        
+        if exited_place:
+            await place_service.end_visit(
+                uid=user_id,
+                place_id=exited_place.id
+            )
+            logger.info(f"User exited place: {exited_place.name}")
+            await check_location_triggered_tasks(user_id, exited_place.id, "departure")
+        
+        entered_place = await place_service.check_place_entry(
+            uid=user_id,
+            lat=lat,
+            lon=lon
+        )
+        
+        if entered_place:
+            await place_service.record_visit(
+                uid=user_id,
+                place_id=entered_place.id
+            )
+            logger.info(f"User entered place: {entered_place.name}")
+            await check_location_triggered_tasks(user_id, entered_place.id, "arrival")
+            
+    except Exception as e:
+        logger.error(f"Error during place detection: {e}")
 
 
 def verify_overland_token(authorization: Optional[str] = Header(None)) -> Optional[str]:
@@ -62,7 +189,8 @@ def verify_overland_token(authorization: Optional[str] = Header(None)) -> Option
 async def receive_overland_data(
     request: Request,
     authorization: Optional[str] = Header(None),
-    location_service: LocationService = Depends(get_location_service)
+    location_service: LocationService = Depends(get_location_service),
+    place_service: PlaceService = Depends(get_place_service)
 ):
     verify_overland_token(authorization)
     
@@ -94,6 +222,25 @@ async def receive_overland_data(
     )
     
     logger.info(f"Received Overland batch: {len(payload.locations)} locations, stored {locations_stored}")
+    
+    try:
+        await ensure_home_place_exists(place_service, user_id)
+        
+        if payload.locations:
+            last_loc = payload.locations[-1]
+            if isinstance(last_loc, dict):
+                geometry = last_loc.get("geometry", {})
+                coords = geometry.get("coordinates", [])
+                if len(coords) >= 2:
+                    lon, lat = coords[0], coords[1]
+                    await process_place_detection(
+                        place_service=place_service,
+                        user_id=user_id,
+                        lat=lat,
+                        lon=lon
+                    )
+    except Exception as e:
+        logger.error(f"Place detection error (non-blocking): {e}")
     
     return OverlandResponse(result="ok")
 

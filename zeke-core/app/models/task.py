@@ -37,6 +37,12 @@ class TaskDB(Base, UUIDMixin, TimestampMixin):
     
     conversation_id: Optional[str] = Column(String(36), nullable=True, index=True)
     
+    place_id: Optional[str] = Column(String(36), nullable=True, index=True)
+    place_name: Optional[str] = Column(String(128), nullable=True)
+    trigger_on_arrival: bool = Column(Boolean, default=False)
+    trigger_on_departure: bool = Column(Boolean, default=False)
+    location_triggered: bool = Column(Boolean, default=False)
+    
     tags: List[str] = Column(JSON, default=list)
     subtasks: List[dict] = Column(JSON, default=list)
     
