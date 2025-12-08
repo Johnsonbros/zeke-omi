@@ -32,6 +32,54 @@ HIGH_CONFIDENCE_THRESHOLD = 0.85
 MEDIUM_CONFIDENCE_THRESHOLD = 0.65
 LOW_CONFIDENCE_THRESHOLD = 0.4
 
+VAGUE_PATTERNS = [
+    "the user", "the child", "someone", "a person",
+    "expresses a desire", "indicates that", "observes that",
+    "has a feeling", "some entities", "certain way",
+    "in general", "something about", "various",
+    "potentially", "possibly", "seems to", "appears to"
+]
+
+THIRD_PERSON_PATTERNS = [
+    "user is", "user has", "user wants", "user likes",
+    "child is", "child has", "child wants",
+    "they are", "they have", "they want"
+]
+
+
+def check_memory_quality(content: str) -> Tuple[float, List[str]]:
+    """Check memory quality and return (score, issues) tuple."""
+    issues = []
+    content_lower = content.lower()
+    
+    for pattern in VAGUE_PATTERNS:
+        if pattern in content_lower:
+            issues.append(f"Contains vague phrase: '{pattern}'")
+    
+    for pattern in THIRD_PERSON_PATTERNS:
+        if pattern in content_lower:
+            issues.append(f"Uses third-person language: '{pattern}'")
+    
+    if len(content) < 20:
+        issues.append("Too short to be useful")
+    
+    if len(content) > 500:
+        issues.append("Too long - should be concise")
+    
+    words = content.split()
+    if len(words) < 5:
+        issues.append("Not enough detail")
+    
+    has_specific_detail = any([
+        any(c.isupper() for c in word[1:]) or word[0].isupper() 
+        for word in words if len(word) > 2 and word not in ["The", "This", "That", "For", "And", "But", "With"]
+    ])
+    if not has_specific_detail and "I " not in content and "my " not in content.lower():
+        issues.append("Lacks specific names, places, or personal reference")
+    
+    score = max(0.0, 1.0 - (len(issues) * 0.25))
+    return score, issues
+
 
 class MemoryCurationService:
     def __init__(self, openai_client: Optional[OpenAIClient] = None):
@@ -69,14 +117,30 @@ class MemoryCurationService:
         return None
     
     async def classify_memory(self, memory: MemoryDB) -> Dict[str, Any]:
+        quality_score, quality_issues = check_memory_quality(memory.content)
+        
+        if quality_score < 0.5:
+            return {
+                "primary_topic": "other",
+                "confidence": quality_score * 0.5,
+                "method": "quality_filter",
+                "tags": [],
+                "quality_score": quality_score,
+                "quality_issues": quality_issues,
+                "should_flag": True,
+                "flag_reason": "; ".join(quality_issues[:3])
+            }
+        
         keyword_topic = self._detect_topic_by_keywords(memory.content)
         
         if keyword_topic:
             return {
                 "primary_topic": keyword_topic,
-                "confidence": 0.7,
+                "confidence": min(0.7, quality_score),
                 "method": "keywords",
-                "tags": [keyword_topic]
+                "tags": [keyword_topic],
+                "quality_score": quality_score,
+                "quality_issues": quality_issues
             }
         
         openai_client = self._require_openai()
@@ -85,11 +149,20 @@ class MemoryCurationService:
 - primary_topic: One of: personal_profile, relationships, commitments, health, travel, finance, hobbies, work, preferences, facts, other
 - tags: List of 1-3 relevant tags (lowercase, single words)
 - sentiment: positive, negative, or neutral
-- importance: high, medium, or low
+- importance: high, medium, or low (high = worth remembering, low = trivial/forgettable)
 - is_actionable: true if this requires follow-up action
+- is_specific: true if the memory contains concrete details (names, dates, places, numbers)
+- is_personal: true if written from first-person perspective about the user
+- should_keep: true if this is a valuable memory worth storing
 - confidence: 0.0-1.0 indicating classification confidence
 
 Memory: "{memory.content}"
+
+QUALITY NOTES: Rate confidence LOW if the memory:
+- Uses third-person language like "the user" or "the child"
+- Is vague without specific details
+- Describes generic observations anyone could make
+- Lacks personal context or first-person perspective
 
 Return only valid JSON, no other text."""
 
@@ -299,6 +372,11 @@ Return only valid JSON, no other text."""
             }
         
         quality = await self.assess_quality(memory, all_user_memories)
+        
+        if classification.get("should_flag"):
+            quality["should_flag"] = True
+            quality["issues"] = classification.get("quality_issues", []) + quality.get("issues", [])
+            quality["quality_score"] = min(quality["quality_score"], classification.get("quality_score", 0.5))
         
         enriched_context = None
         emotional_context = None
