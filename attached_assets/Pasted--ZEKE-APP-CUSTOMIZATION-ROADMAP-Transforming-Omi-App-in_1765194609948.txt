@@ -1,0 +1,593 @@
+# ZEKE APP CUSTOMIZATION ROADMAP
+
+## Transforming Omi App into ZEKE’s Primary Input Layer
+
+-----
+
+## 🎯 PHASE 1: Backend Integration (Week 1)
+
+### 1.1 Configuration Files
+
+**File: `app/lib/config/zeke_config.dart`**
+
+```dart
+class ZekeConfig {
+  static const String BACKEND_URL = String.fromEnvironment(
+    'ZEKE_BACKEND_URL',
+    defaultValue: 'https://your-replit-app.repl.co'
+  );
+  
+  static const String LIMITLESS_API_KEY = String.fromEnvironment('LIMITLESS_API_KEY');
+  static const String CLAUDE_API_KEY = String.fromEnvironment('CLAUDE_API_KEY');
+  
+  // API Endpoints
+  static const String LIFELOGS_ENDPOINT = '/api/v1/lifelogs';
+  static const String TASKS_ENDPOINT = '/api/v1/tasks';
+  static const String EVENTS_ENDPOINT = '/api/v1/events';
+  static const String AGENTS_ENDPOINT = '/api/v1/agents';
+}
+```
+
+### 1.2 API Client Replacement
+
+**Replace:** `app/lib/backend/http/api/`
+
+**With:** Custom ZEKE API client
+
+```dart
+// app/lib/backend/zeke_api_client.dart
+
+class ZekeApiClient {
+  final Dio _dio;
+  
+  // Core Methods
+  Future<List<Lifelog>> fetchLifelogs({DateTime? start, DateTime? end});
+  Future<List<Task>> fetchTasks({String? status});
+  Future<List<Event>> fetchEvents({DateTime? start, DateTime? end});
+  
+  // Real-time streaming
+  Stream<TranscriptChunk> streamTranscript();
+  
+  // Agent communication
+  Future<AgentResponse> queryAgent(String agentType, String query);
+  
+  // Proactive notifications
+  Stream<ProactiveNotification> listenForNotifications();
+}
+```
+
+### 1.3 Authentication Flow
+
+**Update:** `app/lib/backend/auth/`
+
+- Remove Firebase Auth dependency
+- Add custom JWT auth for ZEKE backend
+- Support API key authentication
+
+-----
+
+## 🎯 PHASE 2: UI/UX Customization (Week 2)
+
+### 2.1 New Home Screen
+
+**File: `app/lib/pages/home/zeke_home_page.dart`**
+
+**Features:**
+
+- **Dashboard View**
+  - Today’s tasks (extracted from lifelogs)
+  - Upcoming events
+  - Recent conversations
+  - Agent activity feed
+- **Real-time Transcript**
+  - Live transcription from pendant
+  - Speaker identification
+  - Action item highlighting
+- **Quick Actions**
+  - “Ask ZEKE”
+  - Manual task entry
+  - Event creation
+  - Agent query
+
+### 2.2 Agent Dashboard
+
+**File: `app/lib/pages/agents/agent_dashboard_page.dart`**
+
+**Show:**
+
+- Active agents status
+- Recent agent actions
+- Agent suggestions
+- Manual agent triggers
+
+### 2.3 Business Intelligence View
+
+**File: `app/lib/pages/business/business_intel_page.dart`**
+
+**For Johnson Bros. Plumbing:**
+
+- Today’s jobs (from conversations)
+- Customer calls log
+- Team communications
+- Revenue tracking
+
+### 2.4 Family Management View
+
+**File: `app/lib/pages/family/family_page.dart`**
+
+**Features:**
+
+- Shakita’s schedule sync
+- Aurora & Carolina activities
+- Family reminders
+- Shared calendar
+
+-----
+
+## 🎯 PHASE 3: Data Models (Week 2-3)
+
+### 3.1 Update Data Models
+
+**File: `app/lib/models/`**
+
+```dart
+// lifelog.dart - Enhanced with ZEKE fields
+class Lifelog {
+  final String id;
+  final DateTime startTime;
+  final DateTime endTime;
+  final String transcript;
+  final List<Speaker> speakers;
+  final List<Task> extractedTasks;  // NEW
+  final List<Event> extractedEvents; // NEW
+  final String? locationContext;     // NEW
+  final Map<String, dynamic> metadata;
+}
+
+// task.dart - New model
+class Task {
+  final String id;
+  final String title;
+  final String? description;
+  final DateTime? dueDate;
+  final String priority;
+  final String status;
+  final String sourceLifelogId;
+  final DateTime extractedAt;
+}
+
+// event.dart - New model
+class Event {
+  final String id;
+  final String title;
+  final DateTime startTime;
+  final DateTime? endTime;
+  final String? location;
+  final List<String> attendees;
+  final String sourceLifelogId;
+}
+
+// agent_notification.dart - New model
+class ProactiveNotification {
+  final String id;
+  final String agentType;
+  final String message;
+  final String priority;
+  final Map<String, dynamic> actionData;
+  final DateTime timestamp;
+}
+```
+
+-----
+
+## 🎯 PHASE 4: Real-time Features (Week 3)
+
+### 4.1 WebSocket Connection
+
+**File: `app/lib/services/websocket_service.dart`**
+
+```dart
+class ZekeWebSocketService {
+  // Live transcript streaming
+  Stream<TranscriptChunk> connectToLiveTranscript();
+  
+  // Agent notifications
+  Stream<ProactiveNotification> connectToAgentStream();
+  
+  // Task updates
+  Stream<TaskUpdate> connectToTaskStream();
+}
+```
+
+### 4.2 Background Sync
+
+**File: `app/lib/services/sync_service.dart`**
+
+```dart
+class ZekeSyncService {
+  // Background sync with Limitless API
+  Future<void> syncLifelogs();
+  
+  // Pull new tasks/events from backend
+  Future<void> syncTasks();
+  Future<void> syncEvents();
+  
+  // Push local changes
+  Future<void> pushLocalChanges();
+}
+```
+
+-----
+
+## 🎯 PHASE 5: Plugin System (Week 4)
+
+### 5.1 Custom ZEKE Plugins
+
+**Directory: `app/lib/plugins/zeke/`**
+
+**Business Plugin:**
+
+```dart
+class BusinessIntelligencePlugin extends ZekePlugin {
+  @override
+  Future<void> processLifelog(Lifelog log) async {
+    // Extract business-related info
+    // Customer names, job details, pricing
+  }
+}
+```
+
+**Family Plugin:**
+
+```dart
+class FamilyManagerPlugin extends ZekePlugin {
+  @override
+  Future<void> processLifelog(Lifelog log) async {
+    // Extract family commitments
+    // Kids activities, spouse requests
+  }
+}
+```
+
+**Communication Plugin:**
+
+```dart
+class CommunicationPlugin extends ZekePlugin {
+  @override
+  Future<void> processLifelog(Lifelog log) async {
+    // Extract follow-ups
+    // Email drafts, call reminders
+  }
+}
+```
+
+-----
+
+## 🎯 PHASE 6: Notifications & Actions (Week 4-5)
+
+### 6.1 Proactive Notifications
+
+**File: `app/lib/services/notification_service.dart`**
+
+```dart
+class ZekeNotificationService {
+  // Show proactive suggestions
+  void showProactiveNotification(ProactiveNotification notif);
+  
+  // Handle user actions
+  Future<void> handleQuickAction(String actionType, Map<String, dynamic> data);
+}
+```
+
+### 6.2 Quick Actions
+
+**Examples:**
+
+- “Create task from this” → Tap notification, task created
+- “Add to calendar” → One-tap event creation
+- “Send email follow-up” → Draft email template
+- “Call customer back” → Opens phone with number
+
+-----
+
+## 🎯 PHASE 7: Settings & Preferences (Week 5)
+
+### 7.1 ZEKE Settings Page
+
+**File: `app/lib/pages/settings/zeke_settings_page.dart`**
+
+**Options:**
+
+- Agent preferences (which agents are active)
+- Notification settings (by priority/type)
+- Business hours configuration
+- Privacy settings (what gets logged)
+- Data sync frequency
+
+### 7.2 Agent Configuration
+
+**Per-agent settings:**
+
+- Calendar Agent: Which calendars to sync
+- Business Agent: Customer database integration
+- Family Agent: Family member profiles
+- Communication Agent: Email accounts, phone numbers
+
+-----
+
+## 📦 DEPENDENCIES TO ADD
+
+### pubspec.yaml Updates
+
+```yaml
+dependencies:
+  # Existing Omi dependencies
+  flutter:
+    sdk: flutter
+  
+  # NEW ZEKE Dependencies
+  dio: ^5.4.0                    # HTTP client
+  web_socket_channel: ^2.4.0    # WebSocket
+  sqflite: ^2.3.0               # Local SQLite
+  hive: ^2.2.3                  # Fast local storage
+  shared_preferences: ^2.2.2    # Settings storage
+  
+  # Real-time & Background
+  workmanager: ^0.5.1           # Background tasks
+  connectivity_plus: ^5.0.2     # Network status
+  
+  # Notifications
+  flutter_local_notifications: ^16.3.0
+  
+  # State Management
+  riverpod: ^2.4.9              # Better than provider
+  
+  # Data Processing
+  intl: ^0.19.0                 # Date formatting
+  timezone: ^0.9.2              # Timezone handling
+```
+
+-----
+
+## 🔧 BACKEND API ENDPOINTS NEEDED
+
+Your ZEKE backend must expose:
+
+```
+POST   /api/v1/lifelogs/sync      # Sync from Limitless
+GET    /api/v1/lifelogs           # Fetch lifelogs
+GET    /api/v1/lifelogs/:id       # Single lifelog
+
+GET    /api/v1/tasks              # Fetch tasks
+POST   /api/v1/tasks              # Create task
+PATCH  /api/v1/tasks/:id          # Update task
+DELETE /api/v1/tasks/:id          # Delete task
+
+GET    /api/v1/events             # Fetch events
+POST   /api/v1/events             # Create event
+PATCH  /api/v1/events/:id         # Update event
+
+POST   /api/v1/agents/query       # Query specific agent
+GET    /api/v1/agents/status      # All agents status
+
+WS     /ws/transcript             # Live transcript stream
+WS     /ws/notifications          # Proactive notifications
+WS     /ws/agent-updates          # Agent activity stream
+```
+
+-----
+
+## 🚀 IMPLEMENTATION ORDER
+
+### Week 1: Foundation
+
+1. ✅ Setup ZEKE config files
+1. ✅ Create ZekeApiClient
+1. ✅ Test connection to your backend
+1. ✅ Update authentication flow
+
+### Week 2: Core Features
+
+1. ✅ Build new data models
+1. ✅ Create ZEKE home page
+1. ✅ Implement task list view
+1. ✅ Implement event calendar view
+
+### Week 3: Real-time
+
+1. ✅ WebSocket integration
+1. ✅ Live transcript view
+1. ✅ Background sync service
+1. ✅ Local caching with SQLite
+
+### Week 4: Intelligence
+
+1. ✅ Agent dashboard
+1. ✅ Custom plugin system
+1. ✅ Business intelligence view
+1. ✅ Family management view
+
+### Week 5: Polish
+
+1. ✅ Proactive notifications
+1. ✅ Quick actions
+1. ✅ Settings & preferences
+1. ✅ Testing & debugging
+
+-----
+
+## 🎨 UI/UX MOCKUP IDEAS
+
+### Home Screen Layout
+
+```
+┌─────────────────────────────┐
+│  ZEKE                    ☰  │
+├─────────────────────────────┤
+│  🟢 Live Recording          │
+│  "Talking to customer..."   │
+├─────────────────────────────┤
+│  📋 Today's Tasks (4)       │
+│  • Call back John - 2pm     │
+│  • Send quote to Alice      │
+│  • Pick up Aurora - 3:30pm  │
+│  • Review payroll           │
+├─────────────────────────────┤
+│  📅 Upcoming Events         │
+│  • Team meeting - 1pm       │
+│  • Dinner with Shakita - 7pm│
+├─────────────────────────────┤
+│  🤖 Agent Activity          │
+│  • Business: Extracted job  │
+│  • Calendar: Added reminder │
+├─────────────────────────────┤
+│  [Ask ZEKE]  [Quick Add]    │
+└─────────────────────────────┘
+```
+
+### Agent Dashboard
+
+```
+┌─────────────────────────────┐
+│  🤖 ZEKE Agents             │
+├─────────────────────────────┤
+│  🟢 Calendar Agent          │
+│     Active | 3 events today │
+│                             │
+│  🟢 Business Agent          │
+│     Active | 2 new leads    │
+│                             │
+│  🟢 Family Agent            │
+│     Active | 1 reminder     │
+│                             │
+│  🟡 Communication Agent     │
+│     Idle | 0 pending        │
+├─────────────────────────────┤
+│  Recent Actions:            │
+│  • Created task: Call John  │
+│  • Added event: Team mtg    │
+│  • Sent reminder: Pick up A │
+└─────────────────────────────┘
+```
+
+-----
+
+## 🔒 SECURITY CONSIDERATIONS
+
+1. **API Keys**: Store in secure storage, never hardcode
+1. **Authentication**: JWT tokens with refresh
+1. **Local Data**: Encrypt SQLite database
+1. **Network**: Use HTTPS/WSS only
+1. **Privacy**: User can disable/enable agents
+1. **Permissions**: Request only what’s needed
+
+-----
+
+## 📊 SUCCESS METRICS
+
+### App must achieve:
+
+- ✅ Sub-second latency for transcript display
+- ✅ 99% uptime for WebSocket connection
+- ✅ Background sync every 5 minutes
+- ✅ Task extraction accuracy >90%
+- ✅ Event detection accuracy >85%
+- ✅ Battery life: >8 hours continuous use
+- ✅ App size: <100MB
+
+-----
+
+## 🧪 TESTING STRATEGY
+
+### Unit Tests
+
+- API client methods
+- Data model serialization
+- Task extraction logic
+
+### Integration Tests
+
+- Backend communication
+- WebSocket streams
+- Background sync
+
+### E2E Tests
+
+- Complete user flows
+- Notification handling
+- Multi-agent scenarios
+
+### User Acceptance
+
+- Nate’s daily usage
+- Family member feedback
+- Business team testing
+
+-----
+
+## 📱 DEVICE REQUIREMENTS
+
+### iOS
+
+- iOS 14.0+
+- Background audio permissions
+- Notification permissions
+- Location permissions (for Overland)
+
+### Android
+
+- Android 8.0+ (API 26+)
+- Foreground service for recording
+- Notification channels
+- Battery optimization exemption
+
+-----
+
+## 🎯 FINAL DELIVERABLE
+
+A fully customized Omi app that:
+
+1. ✅ Records from pendant/phone
+1. ✅ Syncs with ZEKE backend
+1. ✅ Displays extracted tasks/events
+1. ✅ Shows agent activity
+1. ✅ Sends proactive notifications
+1. ✅ Manages business & family data
+1. ✅ Works offline with sync
+1. ✅ Provides “Jarvis-like” experience
+
+-----
+
+## 🚨 CRITICAL PATH ITEMS
+
+**Must Have Before Launch:**
+
+- [ ] Backend API fully functional
+- [ ] WebSocket for real-time
+- [ ] Task extraction working
+- [ ] Event detection working
+- [ ] Notifications configured
+- [ ] Local caching implemented
+- [ ] Authentication secure
+
+**Nice to Have:**
+
+- [ ] Voice commands
+- [ ] AI-generated summaries
+- [ ] Predictive suggestions
+- [ ] Multi-device sync
+- [ ] Widget support
+
+-----
+
+## 📞 NEXT STEPS
+
+1. **Clone your fork**: `git clone https://github.com/Johnsonbros/omi.git`
+1. **Create zeke branch**: `git checkout -b zeke-customization`
+1. **Review existing code**: Understand current structure
+1. **Start with Phase 1**: Backend integration
+1. **Iterate**: Test each phase before moving on
+
+-----
+
+**Ready to start customizing? Let’s begin with Phase 1! 🚀**
