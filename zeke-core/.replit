@@ -1,7 +1,0 @@
-[deployment]
-run = "python main.py"
-build = "cd dashboard && npm run build"
-
-[build]
-priority = 100
-files = ["pyproject.toml", "poetry.lock", "requirements.txt", "dashboard/package.json", "dashboard/package-lock.json", "main.py"]

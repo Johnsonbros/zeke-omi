@@ -142,10 +142,13 @@ externalPort = 8099
 
 [deployment]
 deploymentTarget = "vm"
-run = ["bash", "-c", "cd zeke-core && python main.py"]
+run = ["bash", "-c", "cd zeke-core && PORT=5000 python main.py"]
 build = ["bash", "-c", "cd zeke-core/dashboard && npm run build"]
 
 [userenv]
 
 [userenv.shared]
 HOME_LOCATION = "42.267,-71.015"
+
+[userenv.production]
+PORT = "5000"
