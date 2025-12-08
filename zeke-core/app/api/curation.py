@@ -125,3 +125,40 @@ async def batch_action(actions: List[MemoryActionRequest]):
             })
     
     return {"results": results}
+
+
+class RejectionFeedbackRequest(BaseModel):
+    reason: str
+    feedback: str = ""
+    delete_permanently: bool = False
+
+
+@router.post("/reject/{memory_id}/feedback")
+async def reject_memory_with_feedback(memory_id: str, request: RejectionFeedbackRequest):
+    try:
+        success = await curation_service.reject_memory_with_feedback(
+            memory_id=memory_id,
+            reason=request.reason,
+            feedback=request.feedback,
+            delete=request.delete_permanently
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Memory not found")
+        return {
+            "status": "success",
+            "deleted": request.delete_permanently,
+            "feedback_recorded": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/queue/{user_id}", response_model=List[MemoryResponse])
+async def get_curation_queue(user_id: str, limit: int = 20):
+    try:
+        memories = await curation_service.get_curation_queue(user_id, limit)
+        return memories
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

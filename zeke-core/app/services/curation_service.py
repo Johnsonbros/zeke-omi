@@ -715,3 +715,58 @@ Return only valid JSON, no other text."""
                 "by_topic": {topic: count for topic, count in by_topic},
                 "recent_runs": [CurationRunResponse.model_validate(r) for r in recent_runs]
             }
+    
+    async def reject_memory_with_feedback(
+        self, 
+        memory_id: str, 
+        reason: str, 
+        feedback: str = "",
+        delete: bool = False
+    ) -> bool:
+        with get_db_context() as db:
+            memory = db.query(MemoryDB).filter(MemoryDB.id == memory_id).first()
+            if memory:
+                existing_context = memory.enriched_context or {}
+                existing_context["rejection_feedback"] = {
+                    "reason": reason,
+                    "feedback": feedback,
+                    "rejected_at": datetime.utcnow().isoformat(),
+                    "original_content": memory.content
+                }
+                
+                if delete:
+                    db.delete(memory)
+                else:
+                    memory.curation_status = CurationStatus.deleted.value
+                    memory.curation_notes = f"Rejected: {reason}" + (f" - {feedback}" if feedback else "")
+                    memory.last_curated = datetime.utcnow()
+                    memory.enriched_context = existing_context
+                db.flush()
+                
+                if feedback:
+                    await self._learn_from_rejection(memory.content, reason, feedback)
+                
+                return True
+            return False
+    
+    async def _learn_from_rejection(self, content: str, reason: str, feedback: str):
+        logger.info(f"Learning from rejection - Reason: {reason}, Feedback: {feedback[:100]}...")
+        pass
+    
+    async def get_curation_queue(
+        self,
+        user_id: str,
+        limit: int = 20
+    ) -> List[MemoryResponse]:
+        with get_db_context() as db:
+            memories = db.query(MemoryDB).filter(
+                MemoryDB.uid == user_id,
+                or_(
+                    MemoryDB.curation_status == CurationStatus.pending.value,
+                    MemoryDB.curation_status == CurationStatus.needs_review.value,
+                    MemoryDB.curation_status == CurationStatus.flagged.value,
+                    MemoryDB.curation_status.is_(None)
+                )
+            ).order_by(MemoryDB.created_at.desc()).limit(limit).all()
+            
+            return [MemoryResponse.model_validate(m) for m in memories]

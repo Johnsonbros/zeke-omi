@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Search, Brain, X, Filter, Calendar, Tag, Sparkles, ChevronDown, ChevronUp, Check, RefreshCw, AlertTriangle, Clock, BarChart3, Zap, Shield, Eye } from 'lucide-react';
+import { Plus, Trash2, Search, Brain, X, Filter, Calendar, Tag, Sparkles, ChevronDown, ChevronUp, Check, RefreshCw, AlertTriangle, Clock, BarChart3, Zap, Shield, Eye, Hand } from 'lucide-react';
 import { api, type Memory, type CurationStats, type CurationRun } from '../lib/api';
+import { SwipeCurationView } from '../components/SwipeCurationView';
 
 type TabType = 'browse' | 'add' | 'curate';
 
@@ -22,6 +23,8 @@ export function Memories() {
   const [runningCuration, setRunningCuration] = useState(false);
   const [lastRun, setLastRun] = useState<CurationRun | null>(null);
   const [curationView, setCurationView] = useState<'overview' | 'review'>('overview');
+  const [showSwipeView, setShowSwipeView] = useState(false);
+  const [swipeMemories, setSwipeMemories] = useState<Memory[]>([]);
 
   useEffect(() => {
     loadMemories();
@@ -130,6 +133,38 @@ export function Memories() {
     }
   }
 
+  async function handleStartSwipeReview() {
+    try {
+      const queue = await api.getMemoriesForCuration('default_user', 20);
+      if (queue.length > 0) {
+        setSwipeMemories(queue);
+        setShowSwipeView(true);
+      }
+    } catch (err) {
+      console.error('Failed to load curation queue:', err);
+    }
+  }
+
+  async function handleSwipeApprove(memoryId: string) {
+    await api.approveMemory(memoryId);
+  }
+
+  async function handleSwipeReject(memoryId: string, reason: string, feedback: string, permanent: boolean) {
+    await api.rejectMemoryWithFeedback(memoryId, reason, feedback, permanent);
+  }
+
+  function handleSwipeComplete() {
+    loadCurationData();
+    loadMemories();
+    handleStartSwipeReview();
+  }
+
+  function handleSwipeBack() {
+    setShowSwipeView(false);
+    loadCurationData();
+    loadMemories();
+  }
+
   function toggleExpanded(id: string) {
     const newExpanded = new Set(expandedMemories);
     if (newExpanded.has(id)) {
@@ -180,6 +215,20 @@ export function Memories() {
           <Brain className="w-12 h-12 text-cyan-400 animate-bounce" />
           <p className="text-slate-400">Loading memories...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (showSwipeView) {
+    return (
+      <div className="fixed inset-0 bg-slate-950 z-50 flex flex-col">
+        <SwipeCurationView
+          memories={swipeMemories}
+          onComplete={handleSwipeComplete}
+          onBack={handleSwipeBack}
+          onApprove={handleSwipeApprove}
+          onReject={handleSwipeReject}
+        />
       </div>
     );
   }
@@ -282,6 +331,8 @@ export function Memories() {
           handleRunCuration={handleRunCuration}
           handleApprove={handleApprove}
           handleReject={handleReject}
+          onStartSwipeReview={handleStartSwipeReview}
+          pendingCount={stats?.pending_curation || 0}
         />
       )}
     </div>
@@ -511,6 +562,8 @@ function CurateTab({
   handleRunCuration,
   handleApprove,
   handleReject,
+  onStartSwipeReview,
+  pendingCount,
 }: {
   stats: CurationStats | null;
   flaggedMemories: Memory[];
@@ -521,9 +574,38 @@ function CurateTab({
   handleRunCuration: () => void;
   handleApprove: (id: string) => void;
   handleReject: (id: string, permanent: boolean) => void;
+  onStartSwipeReview: () => void;
+  pendingCount: number;
 }) {
   return (
     <div className="space-y-5">
+      {pendingCount > 0 && (
+        <div className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 rounded-2xl p-6 border border-purple-700/50 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl" />
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
+                <Hand className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Train Your Memory</h3>
+                <p className="text-sm text-slate-400">{pendingCount} memories need your review</p>
+              </div>
+            </div>
+            <p className="text-slate-300 text-sm mb-4">
+              Swipe through memories to teach Zeke what's accurate and relevant. Your feedback helps improve future memory quality.
+            </p>
+            <button
+              onClick={onStartSwipeReview}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded-xl transition-all shadow-lg shadow-purple-500/30 active:scale-95 font-medium"
+            >
+              <Hand className="w-5 h-5" />
+              Start Swipe Review
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex bg-slate-800/50 rounded-lg p-1 border border-slate-700 flex-1 max-w-xs">
           <button
