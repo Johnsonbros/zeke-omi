@@ -107,6 +107,57 @@ async def get_place_context(
     return context
 
 
+@router.get("/discover")
+async def discover_places(
+    min_visits: int = Query(3, ge=1, description="Minimum visits to consider a location"),
+    days_back: int = Query(30, ge=1, le=365, description="Number of days to look back"),
+    place_service: PlaceService = Depends(get_place_service)
+):
+    """Discover frequently visited locations that aren't saved as places."""
+    suggestions = await place_service.discover_frequent_locations(
+        uid=USER_ID,
+        min_visits=min_visits,
+        days_back=days_back
+    )
+    return suggestions
+
+
+@router.post("/discover/confirm", response_model=PlaceResponse)
+async def confirm_discovered_place(
+    request: PlaceCreate,
+    place_service: PlaceService = Depends(get_place_service)
+):
+    """Confirm a discovered location as a saved place."""
+    place = await place_service.confirm_discovered_place(
+        uid=USER_ID,
+        latitude=request.latitude,
+        longitude=request.longitude,
+        name=request.name,
+        category=request.category.value if hasattr(request.category, 'value') else request.category
+    )
+    logger.info(f"Confirmed discovered place: {place.name} (id={place.id})")
+    return place
+
+
+@router.get("/routines")
+async def get_routines(
+    days_back: int = Query(28, ge=7, le=365, description="Number of days to analyze"),
+    place_service: PlaceService = Depends(get_place_service)
+):
+    """Get detected routines based on visit patterns."""
+    routines = await place_service.get_routines(uid=USER_ID, days_back=days_back)
+    return routines
+
+
+@router.get("/routines/deviation")
+async def check_routine_deviation(
+    place_service: PlaceService = Depends(get_place_service)
+):
+    """Check if user is deviating from their typical routine."""
+    deviation = await place_service.check_routine_deviation(uid=USER_ID)
+    return deviation or {"is_deviation": False}
+
+
 @router.get("/{place_id}", response_model=PlaceResponse)
 async def get_place(
     place_id: str,

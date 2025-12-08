@@ -146,6 +146,27 @@ export interface PlaceStats {
   memories_count: number;
 }
 
+export interface PlaceSuggestion {
+  latitude: number;
+  longitude: number;
+  visit_count: number;
+  suggested_category: string;
+  first_seen: string;
+  last_seen: string;
+}
+
+export interface Routine {
+  place_id: string;
+  place_name: string;
+  day: string;
+  day_number: number;
+  hour: number;
+  time_display: string;
+  occurrence_count: number;
+  confidence: number;
+  description: string;
+}
+
 export const api = {
   async chat(message: string, history: ChatMessage[] = []): Promise<ChatResponse> {
     const res = await fetch(`${API_BASE}/chat/`, {
@@ -426,6 +447,38 @@ export const placesApi = {
   async getMostVisited(limit = 5): Promise<Place[]> {
     const res = await fetch(`${API_BASE}/places/most-visited?limit=${limit}`);
     if (!res.ok) return [];
+    return res.json();
+  },
+
+  async discoverPlaces(minVisits = 3, daysBack = 30): Promise<PlaceSuggestion[]> {
+    const params = new URLSearchParams({ 
+      min_visits: String(minVisits), 
+      days_back: String(daysBack) 
+    });
+    const res = await fetch(`${API_BASE}/places/discover?${params}`);
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  async confirmDiscoveredPlace(data: PlaceCreate): Promise<Place> {
+    const res = await fetch(`${API_BASE}/places/discover/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to confirm discovered place');
+    return res.json();
+  },
+
+  async getRoutines(daysBack = 28): Promise<Routine[]> {
+    const res = await fetch(`${API_BASE}/places/routines?days_back=${daysBack}`);
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  async checkRoutineDeviation(): Promise<{ is_deviation: boolean; typical_place?: string; current_place?: string; message?: string }> {
+    const res = await fetch(`${API_BASE}/places/routines/deviation`);
+    if (!res.ok) return { is_deviation: false };
     return res.json();
   },
 };

@@ -489,3 +489,284 @@ class PlaceService:
             place = db.query(PlaceDB).filter(PlaceDB.id == most_common_place_id).first()
             
             return place.name if place else None
+
+    async def discover_frequent_locations(
+        self,
+        uid: str,
+        min_visits: int = 3,
+        cluster_radius_meters: float = 100.0,
+        days_back: int = 30
+    ) -> List[dict]:
+        """
+        Analyze location history to find frequently visited spots that aren't saved places.
+        First aggregates GPS pings into distinct visits (dwell sessions), then clusters locations.
+        Returns list of suggested places with actual visit counts (not raw GPS pings).
+        """
+        from ..models.location import LocationDB
+        
+        with get_db_context() as db:
+            cutoff = datetime.utcnow() - timedelta(days=days_back)
+            locations = db.query(LocationDB).filter(
+                and_(
+                    LocationDB.uid == uid,
+                    LocationDB.timestamp >= cutoff,
+                    LocationDB.speed < 2.0
+                )
+            ).order_by(LocationDB.timestamp).all()
+            
+            if not locations:
+                return []
+            
+            existing_places = db.query(PlaceDB).filter(PlaceDB.uid == uid).all()
+            
+            # Step 1: Aggregate consecutive GPS pings into distinct visits/dwell sessions
+            # A visit ends if next ping is >30 min later OR >500m away
+            dwell_sessions = []
+            current_session = None
+            session_gap_minutes = 30
+            session_gap_meters = 500
+            
+            for loc in locations:
+                # Skip if near existing place
+                near_existing = False
+                for place in existing_places:
+                    dist = self._haversine_distance_meters(
+                        loc.latitude, loc.longitude,
+                        place.latitude, place.longitude
+                    )
+                    if dist <= place.radius_meters:
+                        near_existing = True
+                        break
+                
+                if near_existing:
+                    # End current session if exists
+                    if current_session:
+                        dwell_sessions.append(current_session)
+                        current_session = None
+                    continue
+                
+                if current_session is None:
+                    # Start new session
+                    current_session = {
+                        "points": [(loc.latitude, loc.longitude)],
+                        "start_time": loc.timestamp,
+                        "end_time": loc.timestamp
+                    }
+                else:
+                    # Check if this point continues the session or starts a new one
+                    time_gap = (loc.timestamp - current_session["end_time"]).total_seconds() / 60
+                    avg_lat = sum(p[0] for p in current_session["points"]) / len(current_session["points"])
+                    avg_lon = sum(p[1] for p in current_session["points"]) / len(current_session["points"])
+                    dist = self._haversine_distance_meters(loc.latitude, loc.longitude, avg_lat, avg_lon)
+                    
+                    if time_gap > session_gap_minutes or dist > session_gap_meters:
+                        # End current session, start new one
+                        dwell_sessions.append(current_session)
+                        current_session = {
+                            "points": [(loc.latitude, loc.longitude)],
+                            "start_time": loc.timestamp,
+                            "end_time": loc.timestamp
+                        }
+                    else:
+                        # Continue session
+                        current_session["points"].append((loc.latitude, loc.longitude))
+                        current_session["end_time"] = loc.timestamp
+            
+            # Don't forget last session
+            if current_session:
+                dwell_sessions.append(current_session)
+            
+            if not dwell_sessions:
+                return []
+            
+            # Step 2: Cluster dwell sessions by location
+            clusters = []
+            used_sessions = set()
+            
+            for i, session in enumerate(dwell_sessions):
+                if i in used_sessions:
+                    continue
+                
+                # Calculate session centroid
+                s_lat = sum(p[0] for p in session["points"]) / len(session["points"])
+                s_lon = sum(p[1] for p in session["points"]) / len(session["points"])
+                
+                # Find all sessions near this location
+                cluster_sessions = [session]
+                cluster_hours = [session["start_time"].hour]
+                used_sessions.add(i)
+                
+                for j, other in enumerate(dwell_sessions):
+                    if j in used_sessions:
+                        continue
+                    
+                    o_lat = sum(p[0] for p in other["points"]) / len(other["points"])
+                    o_lon = sum(p[1] for p in other["points"]) / len(other["points"])
+                    
+                    dist = self._haversine_distance_meters(s_lat, s_lon, o_lat, o_lon)
+                    if dist <= cluster_radius_meters:
+                        cluster_sessions.append(other)
+                        cluster_hours.append(other["start_time"].hour)
+                        used_sessions.add(j)
+                
+                # Count distinct visits (sessions), not GPS pings
+                visit_count = len(cluster_sessions)
+                
+                if visit_count >= min_visits:
+                    # Calculate centroid of all session centroids
+                    all_centroids = []
+                    for sess in cluster_sessions:
+                        c_lat = sum(p[0] for p in sess["points"]) / len(sess["points"])
+                        c_lon = sum(p[1] for p in sess["points"]) / len(sess["points"])
+                        all_centroids.append((c_lat, c_lon))
+                    
+                    avg_lat = sum(c[0] for c in all_centroids) / len(all_centroids)
+                    avg_lon = sum(c[1] for c in all_centroids) / len(all_centroids)
+                    
+                    suggested_category = self._suggest_category_from_times(cluster_hours)
+                    
+                    clusters.append({
+                        "latitude": round(avg_lat, 6),
+                        "longitude": round(avg_lon, 6),
+                        "visit_count": visit_count,
+                        "suggested_category": suggested_category,
+                        "first_seen": min(s["start_time"] for s in cluster_sessions).isoformat(),
+                        "last_seen": max(s["end_time"] for s in cluster_sessions).isoformat()
+                    })
+            
+            clusters.sort(key=lambda x: x["visit_count"], reverse=True)
+            return clusters[:10]
+
+    def _suggest_category_from_times(self, hours: List[int]) -> str:
+        """Suggest a category based on visit times."""
+        avg_hour = sum(hours) / len(hours) if hours else 12
+        
+        if 6 <= avg_hour <= 10:
+            return "work"
+        elif 11 <= avg_hour <= 14:
+            return "restaurant"
+        elif 9 <= avg_hour <= 17:
+            return "work"
+        elif 17 <= avg_hour <= 21:
+            return "restaurant"
+        else:
+            return "home"
+
+    async def confirm_discovered_place(
+        self,
+        uid: str,
+        latitude: float,
+        longitude: float,
+        name: str,
+        category: str = "other"
+    ) -> PlaceResponse:
+        """Confirm a discovered location as a saved place."""
+        return await self.create_place(
+            uid=uid,
+            name=name,
+            latitude=latitude,
+            longitude=longitude,
+            radius_meters=100.0,
+            category=PlaceCategory(category) if category in PlaceCategory.__members__ else PlaceCategory.other,
+            is_auto_detected=True
+        )
+
+    async def get_routines(
+        self,
+        uid: str,
+        days_back: int = 28
+    ) -> List[dict]:
+        """
+        Analyze visit patterns to identify routines.
+        Returns list of detected routines with place, typical day/time, and confidence.
+        """
+        with get_db_context() as db:
+            cutoff = datetime.utcnow() - timedelta(days=days_back)
+            
+            visits = db.query(PlaceVisitDB, PlaceDB).join(
+                PlaceDB, PlaceVisitDB.place_id == PlaceDB.id
+            ).filter(
+                and_(
+                    PlaceVisitDB.uid == uid,
+                    PlaceVisitDB.entered_at >= cutoff
+                )
+            ).all()
+            
+            if not visits:
+                return []
+            
+            patterns = {}
+            place_names = {}
+            
+            for visit, place in visits:
+                place_id = place.id
+                place_names[place_id] = place.name
+                
+                if place_id not in patterns:
+                    patterns[place_id] = {}
+                
+                day = visit.day_of_week
+                hour = visit.entered_at.hour
+                
+                if day not in patterns[place_id]:
+                    patterns[place_id][day] = {}
+                
+                patterns[place_id][day][hour] = patterns[place_id][day].get(hour, 0) + 1
+            
+            routines = []
+            day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            
+            for place_id, day_patterns in patterns.items():
+                for day, hour_patterns in day_patterns.items():
+                    for hour, count in hour_patterns.items():
+                        if count >= 2:
+                            weeks = days_back // 7
+                            confidence = min(count / weeks, 1.0)
+                            
+                            routines.append({
+                                "place_id": place_id,
+                                "place_name": place_names[place_id],
+                                "day": day_names[day],
+                                "day_number": day,
+                                "hour": hour,
+                                "time_display": f"{hour:02d}:00",
+                                "occurrence_count": count,
+                                "confidence": round(confidence, 2),
+                                "description": f"Usually at {place_names[place_id]} on {day_names[day]}s around {hour:02d}:00"
+                            })
+            
+            routines.sort(key=lambda x: (x["confidence"], x["occurrence_count"]), reverse=True)
+            return routines
+
+    async def check_routine_deviation(
+        self,
+        uid: str
+    ) -> Optional[dict]:
+        """
+        Check if the user is deviating from their typical routine right now.
+        Returns deviation info if user should be somewhere else.
+        """
+        now = datetime.utcnow()
+        day_of_week = now.weekday()
+        current_hour = now.hour
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        
+        typical_place = await self._get_typical_place_for_time(uid, now)
+        
+        if not typical_place:
+            return None
+        
+        current_place = await self.get_current_place(uid)
+        current_name = current_place.name if current_place else None
+        
+        if current_name == typical_place:
+            return None
+        
+        return {
+            "is_deviation": True,
+            "typical_place": typical_place,
+            "current_place": current_name,
+            "expected_time": f"{current_hour:02d}:00",
+            "day": day_names[day_of_week],
+            "message": f"You're usually at {typical_place} around this time on {day_names[day_of_week]}s"
+        }

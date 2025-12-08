@@ -3,9 +3,9 @@ import {
   MapPin, Plus, Trash2, Edit2, X, Clock, Calendar, 
   Home, Building2, Dumbbell, GraduationCap, UtensilsCrossed, 
   ShoppingBag, Stethoscope, Users, User, MoreHorizontal,
-  ChevronLeft, BarChart3, Navigation, Timer
+  ChevronLeft, BarChart3, Navigation, Timer, Lightbulb, TrendingUp, RefreshCw, Check
 } from 'lucide-react';
-import { placesApi, api, type Place, type PlaceCreate, type PlaceStats, type PlaceVisit } from '../lib/api';
+import { placesApi, api, type Place, type PlaceCreate, type PlaceStats, type PlaceVisit, type PlaceSuggestion, type Routine } from '../lib/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -104,6 +104,9 @@ export function Places() {
   const [showModal, setShowModal] = useState(false);
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
   const [saving, setSaving] = useState(false);
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -116,6 +119,8 @@ export function Places() {
 
   useEffect(() => {
     loadPlaces();
+    fetchSuggestions();
+    fetchRoutines();
   }, []);
 
   async function loadPlaces() {
@@ -126,6 +131,45 @@ export function Places() {
       console.error('Failed to load places:', err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchSuggestions() {
+    setLoadingSuggestions(true);
+    try {
+      const data = await placesApi.discoverPlaces();
+      setSuggestions(data);
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }
+
+  async function fetchRoutines() {
+    try {
+      const data = await placesApi.getRoutines();
+      setRoutines(data);
+    } catch (error) {
+      console.error('Error fetching routines:', error);
+    }
+  }
+
+  async function confirmSuggestion(suggestion: PlaceSuggestion) {
+    const name = prompt('Name this place:', suggestion.suggested_category);
+    if (!name) return;
+    
+    try {
+      await placesApi.confirmDiscoveredPlace({
+        name,
+        latitude: suggestion.latitude,
+        longitude: suggestion.longitude,
+        category: suggestion.suggested_category
+      });
+      loadPlaces();
+      fetchSuggestions();
+    } catch (error) {
+      console.error('Error confirming place:', error);
     }
   }
 
@@ -249,6 +293,11 @@ export function Places() {
           onEditPlace={handleOpenModal}
           onDeletePlace={handleDelete}
           onSelectPlace={loadPlaceStats}
+          suggestions={suggestions}
+          routines={routines}
+          loadingSuggestions={loadingSuggestions}
+          onRefreshSuggestions={fetchSuggestions}
+          onConfirmSuggestion={confirmSuggestion}
         />
       ) : (
         <PlaceDetailView
@@ -281,12 +330,22 @@ function PlacesListView({
   onEditPlace,
   onDeletePlace,
   onSelectPlace,
+  suggestions,
+  routines,
+  loadingSuggestions,
+  onRefreshSuggestions,
+  onConfirmSuggestion,
 }: {
   places: Place[];
   onAddPlace: () => void;
   onEditPlace: (place: Place) => void;
   onDeletePlace: (id: string) => void;
   onSelectPlace: (place: Place) => void;
+  suggestions: PlaceSuggestion[];
+  routines: Routine[];
+  loadingSuggestions: boolean;
+  onRefreshSuggestions: () => void;
+  onConfirmSuggestion: (suggestion: PlaceSuggestion) => void;
 }) {
   return (
     <>
@@ -337,7 +396,136 @@ function PlacesListView({
           ))}
         </div>
       )}
+
+      {/* Suggested Places Section */}
+      <div className="bg-slate-900 rounded-xl border border-slate-700 p-4 md:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Lightbulb className="w-5 h-5 text-yellow-400" />
+            Suggested Places
+          </h2>
+          <button
+            onClick={onRefreshSuggestions}
+            disabled={loadingSuggestions}
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loadingSuggestions ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+        
+        {loadingSuggestions ? (
+          <div className="text-center py-4">
+            <p className="text-slate-400">Analyzing your location history...</p>
+          </div>
+        ) : suggestions.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-slate-400">No new places discovered.</p>
+            <p className="text-slate-500 text-sm mt-1">Keep tracking your location to discover frequently visited spots.</p>
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {suggestions.map((suggestion, index) => (
+              <SuggestionCard
+                key={index}
+                suggestion={suggestion}
+                onConfirm={() => onConfirmSuggestion(suggestion)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Detected Routines Section */}
+      <div className="bg-slate-900 rounded-xl border border-slate-700 p-4 md:p-6">
+        <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
+          <TrendingUp className="w-5 h-5 text-green-400" />
+          Detected Routines
+        </h2>
+        
+        {routines.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-slate-400">No routines detected yet.</p>
+            <p className="text-slate-500 text-sm mt-1">Visit your saved places regularly to build patterns.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {routines.slice(0, 10).map((routine, index) => (
+              <RoutineCard key={index} routine={routine} />
+            ))}
+          </div>
+        )}
+      </div>
     </>
+  );
+}
+
+function SuggestionCard({
+  suggestion,
+  onConfirm,
+}: {
+  suggestion: PlaceSuggestion;
+  onConfirm: () => void;
+}) {
+  const CategoryIcon = getCategoryIcon(suggestion.suggested_category);
+  
+  return (
+    <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-yellow-500/50 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-yellow-500/20 rounded-lg">
+            <CategoryIcon className="w-5 h-5 text-yellow-400" />
+          </div>
+          <div>
+            <span className="text-sm text-yellow-400 font-medium uppercase tracking-wide">
+              {getCategoryLabel(suggestion.suggested_category)}
+            </span>
+            <p className="text-white font-semibold">{suggestion.visit_count} visits</p>
+          </div>
+        </div>
+        <button
+          onClick={onConfirm}
+          className="flex items-center gap-1 bg-yellow-600 text-white px-3 py-1.5 rounded-lg hover:bg-yellow-700 transition-colors text-sm"
+        >
+          <Check className="w-4 h-4" />
+          Save
+        </button>
+      </div>
+      <div className="mt-3 text-sm text-slate-400">
+        <p>📍 {suggestion.latitude.toFixed(4)}, {suggestion.longitude.toFixed(4)}</p>
+        <p className="mt-1">Last seen: {formatDate(suggestion.last_seen)}</p>
+      </div>
+    </div>
+  );
+}
+
+function RoutineCard({ routine }: { routine: Routine }) {
+  const confidenceColor = routine.confidence >= 0.75 ? 'text-green-400' : 
+                          routine.confidence >= 0.5 ? 'text-yellow-400' : 'text-slate-400';
+  const confidenceLabel = routine.confidence >= 0.75 ? 'Strong' : 
+                          routine.confidence >= 0.5 ? 'Moderate' : 'Weak';
+  
+  return (
+    <div className="bg-slate-800 rounded-lg p-4 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-green-500/20 rounded-lg">
+          <Clock className="w-5 h-5 text-green-400" />
+        </div>
+        <div>
+          <p className="text-white font-medium">{routine.place_name}</p>
+          <p className="text-slate-400 text-sm">
+            {routine.day}s at {routine.time_display}
+          </p>
+        </div>
+      </div>
+      <div className="text-right">
+        <span className={`text-sm font-medium ${confidenceColor}`}>
+          {confidenceLabel}
+        </span>
+        <p className="text-slate-500 text-xs">
+          {routine.occurrence_count} occurrences
+        </p>
+      </div>
+    </div>
   );
 }
 
