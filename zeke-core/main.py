@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import logging
 import asyncio
@@ -170,18 +172,33 @@ app.include_router(context.router, prefix="/api")
 app.include_router(places.router, prefix="/api/places", tags=["places"])
 
 
-@app.get("/")
-async def root():
-    return {
-        "name": "Zeke Core",
-        "status": "running",
-        "version": "1.0.0"
-    }
-
-
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+dashboard_dist = os.path.join(os.path.dirname(__file__), "dashboard", "dist")
+if os.path.exists(dashboard_dist):
+    app.mount("/assets", StaticFiles(directory=os.path.join(dashboard_dist, "assets")), name="static-assets")
+    
+    @app.get("/")
+    async def serve_spa_root():
+        return FileResponse(os.path.join(dashboard_dist, "index.html"))
+    
+    @app.get("/{path:path}")
+    async def serve_spa(path: str):
+        file_path = os.path.join(dashboard_dist, path)
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(dashboard_dist, "index.html"))
+else:
+    @app.get("/")
+    async def root():
+        return {
+            "name": "Zeke Core",
+            "status": "running",
+            "version": "1.0.0"
+        }
 
 
 if __name__ == "__main__":

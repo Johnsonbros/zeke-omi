@@ -141,8 +141,8 @@ localPort = 46017
 externalPort = 8099
 
 [deployment]
-deploymentTarget = "autoscale"
-run = ["bash", "-c", "cd zeke-core && uvicorn main:app --host 0.0.0.0 --port 5000"]
+deploymentTarget = "vm"
+run = ["bash", "-c", "redis-server --port 6379 --daemonize yes && cd zeke-core && (python worker.py &) && uvicorn main:app --host 0.0.0.0 --port 5000"]
 build = ["bash", "-c", "cd zeke-core/dashboard && npm install && npm run build"]
 
 [userenv]
