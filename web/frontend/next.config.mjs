@@ -13,11 +13,16 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  output: 'standalone',
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+  },
+  webpack: (config, { isServer, dev }) => {
+    if (!dev) {
+      config.cache = false;
+    }
+    return config;
   },
   async redirects() {
     return [

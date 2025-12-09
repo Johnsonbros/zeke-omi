@@ -1,0 +1,76 @@
+# Dependencies (reinstalled during build)
+**/node_modules/
+node_modules/
+
+# Python
+.pythonlibs/
+__pycache__/
+*.pyc
+*.pyo
+venv/
+myenv/
+
+# Git
+.git/
+.gitignore
+
+# Cache
+.cache/
+.next/
+.npm/
+.yarn/
+
+# Build artifacts
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+
+# Mobile app directories (not needed for web)
+app/
+sdks/
+plugins/
+omi/
+omiGlass/
+
+# Backend (not needed for frontend deployment)
+backend/
+zeke-core/
+mcp/
+
+# Documentation
+docs/
+
+# Tests
+test/
+tests/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Large media files
+*.mov
+*.MOV
+*.mp4
+*.avi
+*.wav
+*.mp3
+*.bin
+*.zip
+
+# Misc
+dump/
+attached_assets/
+*.log
+*.tmp
+.DS_Store
+*.SLDPRT
+*.SLDASM
+
+# Development files
+.env*
+!.env.example
+lefthook.yml
