@@ -9,7 +9,6 @@ from .base import Base, TimestampMixin, UUIDMixin
 
 class ConversationSource(str, Enum):
     omi = "omi"
-    limitless = "limitless"
     phone = "phone"
     external = "external"
 

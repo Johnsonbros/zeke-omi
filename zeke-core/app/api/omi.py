@@ -118,49 +118,6 @@ async def list_omi_conversations(
     return {"conversations": conversations}
 
 
-@router.post("/sync")
-async def trigger_omi_sync():
-    from ..integrations.limitless_bridge import LimitlessBridge
-    
-    bridge = LimitlessBridge(
-        conversation_service=ConversationService()
-    )
-    
-    if not bridge.is_enabled:
-        return {"status": "disabled", "message": "Limitless bridge is not enabled"}
-    
-    synced_ids = await bridge.sync_recent(
-        user_id="default_user",
-        hours=24
-    )
-    
-    return {
-        "status": "synced",
-        "count": len(synced_ids),
-        "conversation_ids": synced_ids
-    }
-
-
-@router.post("/process-existing")
-async def process_existing_conversations(limit: int = 50):
-    """Process existing Limitless conversations that haven't had memories extracted."""
-    from ..integrations.limitless_bridge import LimitlessBridge
-    
-    bridge = LimitlessBridge(
-        conversation_service=ConversationService()
-    )
-    
-    memories_extracted = await bridge.process_unprocessed_conversations(
-        user_id="default_user",
-        limit=limit
-    )
-    
-    return {
-        "status": "processed",
-        "memories_extracted": memories_extracted
-    }
-
-
 class OmiTranscriptSegment(BaseModel):
     text: str
     speaker: Optional[str] = None

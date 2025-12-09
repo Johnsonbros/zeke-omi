@@ -21,9 +21,6 @@ class Settings(BaseSettings):
     twilio_phone_number: Optional[str] = None
     user_phone_number: Optional[str] = None
     
-    limitless_api_key: Optional[str] = None
-    limitless_sync_enabled: bool = True
-    
     google_calendar_credentials: Optional[str] = None
     openweathermap_api_key: Optional[str] = None
     perplexity_api_key: Optional[str] = None
