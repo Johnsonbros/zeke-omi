@@ -197,3 +197,36 @@ omiGlass/.expo
 /backend/logs/
 app/.fvm/
 app/android/.kotlin/
+
+# Large binary files for Replit deployment optimization
+# Video files (demos, tutorials)
+*.mov
+*.MOV
+*.MP4
+*.mp4
+*.avi
+*.webm
+
+# Machine learning models
+*.bin
+*.onnx
+*.tflite
+*.pb
+*.h5
+*.pth
+*.pt
+
+# Large CAD/3D files
+*.f3z
+*.f3d
+*.step
+*.STEP
+*.stl
+*.STL
+
+# Large uncompressed images (keep compressed versions)
+plugins/logos/yidi-sprei.png
+plugins/logos/Nik.JPG
+plugins/logos/Sapiento*.png
+plugins/logos/phoenix-the-cat.jpg
+plugins/logos/travel-guide.jpg

@@ -1,0 +1,64 @@
+# Replit ignore file - exclude files from Replit deployment
+# This helps reduce the deployment size
+
+# Git directory (contains large history)
+.git/
+
+# Documentation (not needed for runtime)
+docs/
+attached_assets/
+*.md
+!README.md
+!DEPLOYMENT.md
+!replit.md
+
+# Hardware files (not needed for runtime)
+omiGlass/hardware/
+omi/hardware/
+
+# Development files
+.github/
+.gemini/
+.vscode/
+.idea/
+
+# Test files
+**/tests/
+**/test/
+**/__tests__/
+
+# Build artifacts (will be generated)
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/.dart_tool/
+**/.pub-cache/
+**/__pycache__/
+**/venv/
+**/*.pyc
+
+# Large binary files
+*.mov
+*.MOV
+*.MP4
+*.mp4
+*.avi
+*.bin
+*.f3z
+*.f3d
+*.step
+*.STEP
+
+# iOS/Android specific (not needed for web deployment)
+app/ios/
+app/android/
+app/macos/
+app/linux/
+app/windows/
+
+# Temporary files
+*.tmp
+*.log
+*.cache
+dump.rdb
