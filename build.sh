@@ -1,17 +1,21 @@
 #!/bin/bash
 set -e
 
-echo "Building Zeke Core..."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
 
-cd zeke-core
+echo "Building Zeke Core..."
+echo "Working directory: $(pwd)"
+
+ZEKE_DIR="$SCRIPT_DIR/zeke-core"
 
 echo "Installing Python dependencies..."
-if [ -f "requirements.txt" ]; then
-    pip install --no-cache-dir -r requirements.txt
+if [ -f "$ZEKE_DIR/requirements.txt" ]; then
+    pip install --no-cache-dir -r "$ZEKE_DIR/requirements.txt"
 fi
 
 echo "Building dashboard..."
-cd dashboard
+cd "$ZEKE_DIR/dashboard"
 npm ci
 npm run build
 
