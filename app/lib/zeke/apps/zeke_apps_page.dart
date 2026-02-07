@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'zeke_webview_page.dart';
+import 'zeke_chat_page.dart';
 
 /// ZEKE Apps Page - Replaces Omi's marketplace with our actual apps
 class ZekeAppsPage extends StatelessWidget {
@@ -49,56 +51,71 @@ class ZekeAppsPage extends StatelessWidget {
                   crossAxisSpacing: 16,
                   childAspectRatio: 1.1,
                 ),
-                delegate: SliverChildListDelegate([
-                  _ZekeAppCard(
-                    title: 'ZEKETrader',
-                    subtitle: 'AI Trading System',
-                    icon: Icons.trending_up,
-                    color: Colors.green,
-                    url: 'https://zeke.tail5b81a2.ts.net:8444',
-                  ),
-                  _ZekeAppCard(
-                    title: 'Dashboard',
-                    subtitle: 'System Status',
-                    icon: Icons.dashboard,
-                    color: Colors.blue,
-                    url: 'https://zeke.tail5b81a2.ts.net:8470',
-                  ),
-                  _ZekeAppCard(
-                    title: 'Calendar',
-                    subtitle: 'Family Schedule',
-                    icon: Icons.calendar_month,
-                    color: Colors.orange,
-                    onTap: () {
-                      // TODO: Open calendar page
-                    },
-                  ),
-                  _ZekeAppCard(
-                    title: 'StoryForge',
-                    subtitle: 'Audiobook Creator',
-                    icon: Icons.auto_stories,
-                    color: Colors.purple,
-                    url: 'https://zeke.tail5b81a2.ts.net:8443',
-                  ),
-                  _ZekeAppCard(
-                    title: 'Context',
-                    subtitle: 'Memory & Transcripts',
-                    icon: Icons.psychology,
-                    color: Colors.teal,
-                    onTap: () {
-                      // TODO: Open context viewer
-                    },
-                  ),
-                  _ZekeAppCard(
-                    title: 'Family',
-                    subtitle: 'Events & Contacts',
-                    icon: Icons.family_restroom,
-                    color: Colors.pink,
-                    onTap: () {
-                      // TODO: Open family page
-                    },
-                  ),
-                ]),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final apps = [
+                      _ZekeAppCard(
+                        title: 'ZEKE Chat',
+                        subtitle: 'Talk to ZEKE',
+                        icon: Icons.chat_bubble,
+                        color: Colors.blue,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ZekeChatPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      _ZekeAppCard(
+                        title: 'ZEKETrader',
+                        subtitle: 'AI Trading System',
+                        icon: Icons.trending_up,
+                        color: Colors.green,
+                        url: 'https://zeke.tail5b81a2.ts.net:8444',
+                      ),
+                      _ZekeAppCard(
+                        title: 'Dashboard',
+                        subtitle: 'System Status',
+                        icon: Icons.dashboard,
+                        color: Colors.deepPurple,
+                        url: 'https://zeke.tail5b81a2.ts.net:8470',
+                      ),
+                      _ZekeAppCard(
+                        title: 'Calendar',
+                        subtitle: 'Family Schedule',
+                        icon: Icons.calendar_month,
+                        color: Colors.orange,
+                        onTap: () {
+                          // TODO: Open calendar page with Google sync
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Calendar coming soon!')),
+                          );
+                        },
+                      ),
+                      _ZekeAppCard(
+                        title: 'StoryForge',
+                        subtitle: 'Audiobook Creator',
+                        icon: Icons.auto_stories,
+                        color: Colors.purple,
+                        url: 'https://zeke.tail5b81a2.ts.net:8443',
+                      ),
+                      _ZekeAppCard(
+                        title: 'Family',
+                        subtitle: 'Events & Contacts',
+                        icon: Icons.family_restroom,
+                        color: Colors.pink,
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Family hub coming soon!')),
+                          );
+                        },
+                      ),
+                    ];
+                    return apps[index];
+                  },
+                  childCount: 6,
+                ),
               ),
             ),
             const SliverToBoxAdapter(
@@ -137,14 +154,18 @@ class _ZekeAppCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: InkWell(
-        onTap: () async {
+        onTap: () {
           if (onTap != null) {
             onTap!();
           } else if (url != null) {
-            final uri = Uri.parse(url!);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ZekeWebViewPage(
+                  title: title,
+                  url: url!,
+                ),
+              ),
+            );
           }
         },
         borderRadius: BorderRadius.circular(16),
