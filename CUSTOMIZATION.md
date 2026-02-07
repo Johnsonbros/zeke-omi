@@ -3,37 +3,43 @@
 ## Overview
 Transform Omi app into ZEKE AI — personal AI assistant with OpenClaw backend.
 
-## Phase 1: Backend Rerouting ✅ IN PROGRESS
+## Phase 1: Backend Rerouting ✅ COMPLETE
 - [x] OmiClaw bridge running (port 8081, Funnel 8464)
-- [x] 5 Omi API endpoints implemented
-- [ ] Update `app/lib/env/` with ZEKE endpoints
-- [ ] Replace Firebase auth with OpenClaw tokens
+- [x] 5 Omi API endpoints implemented (memories, conversations, health)
+- [x] Created `.dev.env` with ZEKE endpoints
+- [ ] Replace Firebase auth with OpenClaw tokens (TODO)
 
-## Phase 2: Remove Omi Marketplace ("Apps" Section)
+## Phase 2: Remove Omi Marketplace ("Apps" Section) ✅ COMPLETE
 **Current:** `app/lib/pages/apps/` — Omi plugin marketplace
 **Target:** Replace with ZEKE Apps dashboard
 
-### Files to modify/remove:
-- `app/lib/pages/apps/page.dart` — Main apps page (REPLACE)
-- `app/lib/pages/apps/app_detail/` — Plugin detail (REMOVE)
-- `app/lib/pages/apps/widgets/` — Marketplace widgets (REMOVE)
-- `app/lib/providers/app_provider.dart` — Fetches from api.omi.me (REPLACE)
-- `app/lib/backend/schema/app.dart` — Omi app schema (REPLACE)
+### Completed:
+- [x] Created `lib/zeke/apps/zeke_apps_page.dart` — New apps grid
+- [x] Created `lib/zeke/apps/zeke_chat_page.dart` — Chat UI with ZEKE
+- [x] Created `lib/zeke/apps/zeke_webview_page.dart` — In-app WebView
+- [x] Replaced `app/lib/pages/apps/page.dart` to use ZekeAppsPage
+- [x] Original Omi page backed up to `page.dart.omi-original`
 
-### New ZEKE Apps to add:
-1. **ZEKE Chat** — Direct conversation with ZEKE
-2. **ZEKETrader** — Trading dashboard (WebView to :5004)
-3. **Calendar** — Family calendar (integrated with Google)
-4. **Dashboard** — System status, health checks
-5. **Context Viewer** — See memories/transcripts
-6. **Family** — Family events, contacts
-7. **Settings** — ZEKE-specific settings
+### ZEKE Apps (Implemented):
+1. **ZEKE Chat** ✅ — Native chat UI (OpenClaw integration TODO)
+2. **ZEKETrader** ✅ — WebView to :8444
+3. **Dashboard** ✅ — WebView to :8470
+4. **Calendar** ⏳ — Placeholder (Google sync TODO)
+5. **StoryForge** ✅ — WebView to :8443
+6. **Family** ⏳ — Placeholder (Family hub TODO)
 
-## Phase 3: Branding
-- [ ] App name: "ZEKE AI"
-- [ ] Package name: `com.johnsonbros.zeke`
-- [ ] App icons: Omega (Ω) theme
-- [ ] Splash screen
+### Files preserved (not yet removed):
+- `app/lib/pages/apps/app_detail/` — May reuse for our app details
+- `app/lib/providers/app_provider.dart` — May repurpose for ZEKE state
+
+## Phase 3: Branding ✅ IN PROGRESS
+- [x] App name: "ZEKE AI" (prod), "ZEKE Dev" (dev)
+- [x] Package name: `com.johnsonbros.zeke`
+- [x] Deep link scheme: `zeke://`
+- [x] Kotlin sources moved to new package
+- [ ] App icons: Omega (Ω) theme (TODO)
+- [ ] Splash screen (TODO)
+- [ ] iOS branding (TODO)
 - [ ] Color scheme (dark theme, Omega blue/gold?)
 
 ## Phase 4: Remove Omi Cloud Dependencies
