@@ -1,4 +1,4 @@
-package com.friend.ios
+package com.johnsonbros.zeke
 
 import android.annotation.SuppressLint
 import android.app.NotificationChannel

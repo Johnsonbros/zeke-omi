@@ -1,4 +1,4 @@
-package com.friend.ios
+package com.johnsonbros.zeke
 
 import android.app.Application
 import io.maido.intercom.IntercomFlutterPlugin

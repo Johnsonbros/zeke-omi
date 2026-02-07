@@ -1,4 +1,4 @@
-package com.friend.ios
+package com.johnsonbros.zeke
 
 import android.content.Intent
 import androidx.annotation.NonNull
