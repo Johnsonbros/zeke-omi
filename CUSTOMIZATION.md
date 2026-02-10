@@ -49,11 +49,56 @@ Transform Omi app into ZEKE AI — personal AI assistant with OpenClaw backend.
 - [ ] Remove Omi account creation flow
 - [ ] Keep BLE stack untouched
 
-## Phase 5: OpenClaw Integration
-- [ ] OmiClaw client built into app (not separate server)
-- [ ] Direct WebSocket to OpenClaw gateway
-- [ ] Node protocol for camera/notifications
-- [ ] Canvas WebView for agent-controlled UI
+## Phase 5: OpenClaw Node Integration ✅ IN PROGRESS
+
+### Completed (2026-02-10):
+- [x] Protocol definitions (`lib/zeke/node/protocol/capabilities.dart`)
+  - All capabilities: canvas, camera, screen, sms, voiceWake, location
+  - All commands: canvas.*, camera.*, location.*, sms.*
+- [x] Gateway WebSocket session (`lib/zeke/node/gateway/gateway_session.dart`)
+  - Connection lifecycle, authentication, heartbeat
+  - Command routing, request/response handling
+- [x] Camera manager (`lib/zeke/node/managers/camera_manager.dart`)
+  - camera.snap (photo), camera.clip (video)
+- [x] Canvas manager (`lib/zeke/node/managers/canvas_manager.dart`)
+  - canvas.present, hide, navigate, eval, snapshot
+  - canvas.a2ui.push, reset
+- [x] Location manager (`lib/zeke/node/managers/location_manager.dart`)
+  - location.get with accuracy levels
+- [x] SMS manager (`lib/zeke/node/managers/sms_manager.dart`)
+  - sms.send (Android only, via platform channel)
+- [x] Node runtime (`lib/zeke/node/node_runtime.dart`)
+  - Main coordinator, command dispatch
+- [x] Gateway settings UI (`lib/zeke/node/widgets/gateway_settings_widget.dart`)
+
+### TODO:
+- [ ] Screen recording manager (screen.record)
+- [ ] Voice wake manager (voiceWake capability)
+- [ ] Android platform channel for SMS native API
+- [ ] Canvas WebView widget with snapshot support
+- [ ] Integration with main app navigation
+- [ ] Auto-reconnect on app resume
+- [ ] mDNS/NSD gateway discovery
+
+### Files Created:
+```
+lib/zeke/node/
+├── node.dart                          # Barrel export
+├── node_runtime.dart                  # Main coordinator (330 lines)
+├── protocol/
+│   └── capabilities.dart              # Protocol constants (82 lines)
+├── gateway/
+│   └── gateway_session.dart           # WebSocket session (316 lines)
+├── managers/
+│   ├── camera_manager.dart            # Camera commands (196 lines)
+│   ├── canvas_manager.dart            # Canvas commands (207 lines)
+│   ├── location_manager.dart          # Location commands (148 lines)
+│   └── sms_manager.dart               # SMS commands (110 lines)
+└── widgets/
+    └── gateway_settings_widget.dart   # Settings UI (276 lines)
+```
+
+**Total: 1,693 lines of Dart code**
 
 ## File Structure (Target)
 
