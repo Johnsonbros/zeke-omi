@@ -13,6 +13,7 @@ import 'gateway/gateway_session.dart';
 import 'managers/camera_manager.dart';
 import 'managers/canvas_manager.dart';
 import 'managers/location_manager.dart';
+import 'managers/screen_manager.dart';
 import 'managers/sms_manager.dart';
 
 /// Node runtime - main entry point for OpenClaw node functionality
@@ -21,6 +22,7 @@ class NodeRuntime {
   final CameraManager camera = CameraManager();
   final CanvasManager canvas = CanvasManager();
   final LocationManager location = LocationManager();
+  final ScreenManager screen = ScreenManager();
   final SmsManager sms = SmsManager();
 
   // Gateway session
@@ -85,7 +87,11 @@ class NodeRuntime {
       caps.add(OpenClawCapability.sms);
     }
 
-    // TODO: Add screen recording capability check
+    // Screen recording (Android only for now)
+    if (screen.isAvailable) {
+      caps.add(OpenClawCapability.screen);
+    }
+
     // TODO: Add voiceWake capability
 
     return caps;
@@ -155,6 +161,11 @@ class NodeRuntime {
       // SMS commands
       if (command.startsWith(OpenClawSmsCommand.namespacePrefix)) {
         return await _handleSmsCommand(command, params);
+      }
+
+      // Screen commands
+      if (command.startsWith(OpenClawScreenCommand.namespacePrefix)) {
+        return await _handleScreenCommand(command, params);
       }
 
       throw Exception('Unknown command: $command');
@@ -298,6 +309,25 @@ class NodeRuntime {
 
       default:
         throw Exception('Unknown SMS command: $command');
+    }
+  }
+
+  /// Handle screen.* commands
+  Future<Map<String, dynamic>> _handleScreenCommand(
+    String command,
+    Map<String, dynamic> params,
+  ) async {
+    switch (command) {
+      case 'screen.record':
+        final result = await screen.record(
+          durationMs: params['durationMs'] as int? ?? 10000,
+          fps: params['fps'] as int? ?? 30,
+          includeAudio: params['includeAudio'] as bool? ?? false,
+        );
+        return result.toJson();
+
+      default:
+        throw Exception('Unknown screen command: $command');
     }
   }
 

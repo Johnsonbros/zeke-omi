@@ -24,5 +24,8 @@ export 'gateway/gateway_session.dart';
 export 'managers/camera_manager.dart';
 export 'managers/canvas_manager.dart';
 export 'managers/location_manager.dart';
+export 'managers/screen_manager.dart';
 export 'managers/sms_manager.dart';
 export 'node_runtime.dart';
+export 'widgets/gateway_settings_widget.dart';
+export 'widgets/canvas_webview_widget.dart';

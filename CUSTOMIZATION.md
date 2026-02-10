@@ -72,10 +72,8 @@ Transform Omi app into ZEKE AI — personal AI assistant with OpenClaw backend.
 - [x] Gateway settings UI (`lib/zeke/node/widgets/gateway_settings_widget.dart`)
 
 ### TODO:
-- [ ] Screen recording manager (screen.record)
 - [ ] Voice wake manager (voiceWake capability)
-- [ ] Android platform channel for SMS native API
-- [ ] Canvas WebView widget with snapshot support
+- [ ] Register plugins in MainActivity
 - [ ] Integration with main app navigation
 - [ ] Auto-reconnect on app resume
 - [ ] mDNS/NSD gateway discovery
@@ -83,8 +81,8 @@ Transform Omi app into ZEKE AI — personal AI assistant with OpenClaw backend.
 ### Files Created:
 ```
 lib/zeke/node/
-├── node.dart                          # Barrel export
-├── node_runtime.dart                  # Main coordinator (330 lines)
+├── node.dart                          # Barrel export (31 lines)
+├── node_runtime.dart                  # Main coordinator (360 lines)
 ├── protocol/
 │   └── capabilities.dart              # Protocol constants (82 lines)
 ├── gateway/
@@ -93,12 +91,18 @@ lib/zeke/node/
 │   ├── camera_manager.dart            # Camera commands (196 lines)
 │   ├── canvas_manager.dart            # Canvas commands (207 lines)
 │   ├── location_manager.dart          # Location commands (148 lines)
+│   ├── screen_manager.dart            # Screen recording (161 lines)
 │   └── sms_manager.dart               # SMS commands (110 lines)
 └── widgets/
-    └── gateway_settings_widget.dart   # Settings UI (276 lines)
+    ├── gateway_settings_widget.dart   # Settings UI (276 lines)
+    └── canvas_webview_widget.dart     # Canvas WebView (241 lines)
+
+android/app/src/main/kotlin/com/johnsonbros/zeke/
+├── SmsPlugin.kt                       # Native SMS API (251 lines)
+└── ScreenRecordPlugin.kt              # Native screen recording (297 lines)
 ```
 
-**Total: 1,693 lines of Dart code**
+**Total: 2,128 lines Dart + 548 lines Kotlin = 2,676 lines**
 
 ## File Structure (Target)
 
