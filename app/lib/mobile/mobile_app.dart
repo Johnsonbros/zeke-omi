@@ -14,19 +14,25 @@ class MobileApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthenticationProvider>(
       builder: (context, authProvider, child) {
-        if (authProvider.isSignedIn()) {
-          if (SharedPreferencesUtil().onboardingCompleted) {
-            return const HomePageWrapper();
-          } else {
-            return const OnboardingWrapper();
-          }
-        } else if (SharedPreferencesUtil().hasOmiDevice == false &&
-            SharedPreferencesUtil().hasPersonaCreated &&
-            SharedPreferencesUtil().verifiedPersonaId != null) {
-          return const PersonaProfilePage();
-        } else {
-          return const DeviceSelectionPage();
-        }
+        // ZEKE: Bypass Firebase auth - go directly to home page for BLE pairing
+        // This allows us to use the app without Firebase authentication
+        // while maintaining upstream merge compatibility
+        return const HomePageWrapper();
+
+        // Original auth flow (kept for upstream merge compatibility):
+        // if (authProvider.isSignedIn()) {
+        //   if (SharedPreferencesUtil().onboardingCompleted) {
+        //     return const HomePageWrapper();
+        //   } else {
+        //     return const OnboardingWrapper();
+        //   }
+        // } else if (SharedPreferencesUtil().hasOmiDevice == false &&
+        //     SharedPreferencesUtil().hasPersonaCreated &&
+        //     SharedPreferencesUtil().verifiedPersonaId != null) {
+        //   return const PersonaProfilePage();
+        // } else {
+        //   return const DeviceSelectionPage();
+        // }
       },
     );
   }
