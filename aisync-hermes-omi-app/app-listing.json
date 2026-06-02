@@ -1,0 +1,24 @@
+{
+  "name": "AiSync Hermes",
+  "category": "Productivity",
+  "visibility": "Private beta first, then Public",
+  "description": "Connect Omi memories, live transcripts, raw audio bytes, daily summaries, and Chat Tools to a user-owned Hermes agent through the AiSync telemetry bridge.",
+  "capabilities": [
+    "external_integration",
+    "real_time_transcript",
+    "memory_trigger",
+    "audio_bytes",
+    "chat_tools"
+  ],
+  "urls": {
+    "app_home_url": "https://zeke.aisyncservices.com/omi",
+    "real_time_transcript_webhook": "https://zeke.aisyncservices.com/webhook/transcript",
+    "memory_creation_webhook": "https://zeke.aisyncservices.com/webhook/memory",
+    "audio_bytes_webhook": "https://zeke.aisyncservices.com/webhook/audio",
+    "setup_completed_url": "https://zeke.aisyncservices.com/setup-completed",
+    "chat_tools_manifest_url": "https://zeke.aisyncservices.com/.well-known/omi-tools.json",
+    "github_source_url": "https://github.com/Johnsonbros/zeke-omi/tree/main/aisync-hermes-omi-app"
+  },
+  "setup_instructions": "Install the app, add your Hermes receiver URL or AiSync account connection, and enable the webhook surfaces you want. Omi audio and transcripts are treated as read-only context by default; commands require chat-tool intent or explicit promotion.",
+  "privacy_summary": "The app stores event metadata and extracted text by default. Full webhook payloads and raw audio storage are disabled unless explicitly enabled by the deployment owner for a short debug window."
+}
